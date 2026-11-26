@@ -1,3 +1,4 @@
+import 'delivery_boys_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -437,7 +438,9 @@ class _OwnerDashboardScreenState extends State {
 
   OwnerDashboardScreen get _w => widget as OwnerDashboardScreen;
 
-  bool get _isOwner => _w.currentUser['role'].toString() == 'owner';
+  String get _role => (_w.currentUser['role'] ?? '').toString().toLowerCase();
+  bool get _isOwner => _role == 'owner';
+  bool get _canDeliveryBoys => _role == 'owner' || _role == 'admin';
   bool get _canOrders => _isOwner || _w.currentUser['can_orders'] == true;
   bool get _canProducts => _isOwner || _w.currentUser['can_products'] == true;
   bool get _canCategories => _isOwner || _w.currentUser['can_categories'] == true;
@@ -453,6 +456,9 @@ class _OwnerDashboardScreenState extends State {
     }
     if (_canCategories) {
       tabs.add({'key': 'categories', 'title': 'सभी श्रेणियां • Categories', 'label': 'Categories', 'icon': Icons.category});
+    }
+    if (_canDeliveryBoys) {
+      tabs.add({'key': 'delivery_boys', 'title': 'डिलीवरी बॉय • Delivery Boys', 'label': 'Delivery', 'icon': Icons.delivery_dining});
     }
     if (_canHisab) {
       tabs.add({'key': 'hisab', 'title': 'दुकान हिसाब • Shop Summary', 'label': 'Hisab', 'icon': Icons.bar_chart});
@@ -1180,6 +1186,7 @@ class _OwnerDashboardScreenState extends State {
                     itemBuilder: (_, i) {
                       final ord = Map.from(filtered[i] as Map);
                       final status = (ord['status'] ?? 'Pending').toString();
+                      final boyName = (ord['delivery_boy_name'] ?? '').toString().trim();
                       final items = ord['items'] is List ? List.from(ord['items'] as List) : [];
                       final sColor = _statusColor(status);
 
@@ -1204,6 +1211,10 @@ class _OwnerDashboardScreenState extends State {
                               ),
                               const SizedBox(height: 4),
                               Text('पता: ${ord['delivery_address']}', style: const TextStyle(fontSize: 12.5)),
+                              if (boyName.isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Text('Delivery Boy: $boyName', style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Color(0xFF1B7A2B))),
+                              ],
                               const Divider(height: 14),
                               ...items.map((it) {
                                 final m = Map.from(it as Map);
@@ -1470,6 +1481,8 @@ class _OwnerDashboardScreenState extends State {
         return _productsTab();
       case 'categories':
         return _categoriesTab();
+      case 'delivery_boys':
+        return DeliveryBoysScreen(actorRole: _role);
       case 'hisab':
         return _summaryTab();
       case 'staff':
