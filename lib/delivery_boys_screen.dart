@@ -48,7 +48,8 @@ class _DeliveryBoysScreenState extends State {
         final boyId = (row['delivery_boy_id'] ?? '').toString();
         if (boyId.isNotEmpty && row['status'] == 'Delivered') {
           countMap[boyId] = (countMap[boyId] ?? 0) + 1;
-          final val = num.tryParse((row['total_amount'] ?? '0').toString()) ?? 0;
+          final val =
+              num.tryParse((row['total_amount'] ?? '0').toString()) ?? 0;
           amtMap[boyId] = (amtMap[boyId] ?? 0) + val;
         }
       }
@@ -69,13 +70,15 @@ class _DeliveryBoysScreenState extends State {
 
   Future _openFormDialog({Map? existing}) async {
     if (!_canManage) {
-      _showSnack('Sirf Owner ya Admin add/edit kar sakte hain.', isError: true);
+      _showSnack('Sirf Owner ya Admin add/edit kar sakte hain.',
+          isError: true);
       return;
     }
 
     final ex = existing != null ? Map.from(existing) : null;
     final nameCtrl = TextEditingController(text: ex?['name']?.toString() ?? '');
-    final phoneCtrl = TextEditingController(text: ex?['phone']?.toString() ?? '');
+    final phoneCtrl =
+        TextEditingController(text: ex?['phone']?.toString() ?? '');
     final loginCtrl =
         TextEditingController(text: ex?['login_id']?.toString() ?? '');
     final passCtrl =
@@ -133,7 +136,8 @@ class _DeliveryBoysScreenState extends State {
                 ),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('Account Active', style: TextStyle(fontSize: 13)),
+                  title: const Text('Account Active',
+                      style: TextStyle(fontSize: 13)),
                   value: isActive,
                   activeColor: const Color(0xFF1B7A2B),
                   onChanged: (v) => setDlg(() => isActive = v),
@@ -170,7 +174,12 @@ class _DeliveryBoysScreenState extends State {
                 }
 
                 try {
+                  final id = ex != null
+                      ? ex['id'].toString()
+                      : 'boy_${DateTime.now().millisecondsSinceEpoch}';
+
                   final payload = {
+                    'id': id,
                     'name': name,
                     'phone': phone,
                     'login_id': loginId,
@@ -183,14 +192,16 @@ class _DeliveryBoysScreenState extends State {
                   };
 
                   if (ex == null) {
-                    await _supabase.from('deua_staff_accounts').insert(payload);
-                    _showSnack('Delivery Boy जुड़ गया!');
+                    await _supabase
+                        .from('deua_staff_accounts')
+                        .insert(payload);
+                    _showSnack('नया Delivery Boy जुड़ गया!');
                   } else {
                     await _supabase
                         .from('deua_staff_accounts')
                         .update(payload)
                         .eq('id', ex['id']);
-                    _showSnack('डेटा अपडेट हो गया!');
+                    _showSnack('Delivery Boy डेटा अपडेट हो गया!');
                   }
 
                   if (ctx.mounted) Navigator.pop(ctx);
