@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class DeliveryBoysScreen extends StatefulWidget {
   final String actorRole;
@@ -13,6 +15,9 @@ class DeliveryBoysScreen extends StatefulWidget {
 class _DeliveryBoysScreenState extends State {
   final _supabase = Supabase.instance.client;
   bool _loading = true;
+  bool _autoTracking = true;
+  bool _syncingAuto = false;
+  Timer? _autoTimer;
   List _boys = [];
   Map _deliveredCount = {};
   Map _deliveredAmount = {};
@@ -26,10 +31,87 @@ class _DeliveryBoysScreenState extends State {
   void initState() {
     super.initState();
     _loadData();
+    _startAutoTracking();
   }
 
-  Future _loadData() async {
-    setState(() => _loading = true);
+  @override
+  void dispose() {
+    _autoTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startAutoTracking() {
+    _autoTimer?.cancel();
+    if (!_autoTracking) return;
+    _autoTimer = Timer.periodic(const Duration(minutes: 2), (_) {
+      _runAutoDutyTracking();
+    });
+  }
+
+  void _toggleAutoTracking() {
+    setState(() => _autoTracking = !_autoTracking);
+    if (_autoTracking) {
+      _startAutoTracking();
+      _showSnack('Auto Live Tracking चालू हो गई।');
+      _runAutoDutyTracking();
+    } else {
+      _autoTimer?.cancel();
+      _showSnack('Auto Live Tracking बंद कर दी गई।');
+    }
+  }
+
+  Future _runAutoDutyTracking() async {
+    if (!_autoTracking || _syncingAuto || !mounted) return;
+    final onDutyBoys = _boys
+        .map((e) => Map.from(e as Map))
+        .where((b) => b['is_active'] == true && b['is_on_duty'] == true)
+        .toList();
+
+    if (onDutyBoys.isEmpty) return;
+
+    _syncingAuto = true;
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return;
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return;
+      }
+
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
+      );
+
+      final nowIso = DateTime.now().toUtc().toIso8601String();
+      for (final b in onDutyBoys) {
+        final boyId = b['id'].toString();
+        await _supabase.from('deua_staff_accounts').update({
+          'current_lat': pos.latitude,
+          'current_lng': pos.longitude,
+          'location_updated_at': nowIso,
+        }).eq('id', boyId);
+      }
+
+      if (mounted) {
+        await _loadData(silent: true);
+      }
+    } catch (_) {
+    } finally {
+      _syncingAuto = false;
+    }
+  }
+
+  Future _loadData({bool silent = false}) async {
+    if (!silent) {
+      setState(() => _loading = true);
+    }
     try {
       final boysRes = await _supabase
           .from('deua_staff_accounts')
@@ -65,7 +147,9 @@ class _DeliveryBoysScreenState extends State {
     } catch (e) {
       if (!mounted) return;
       setState(() => _loading = false);
-      _showSnack('Load error: $e', isError: true);
+      if (!silent) {
+        _showSnack('Load error: $e', isError: true);
+      }
     }
   }
 
@@ -107,9 +191,28 @@ class _DeliveryBoysScreenState extends State {
       }).eq('id', boyId);
 
       _showSnack('$name की GPS लोकेशन अपडेट हो गई।');
-      await _loadData();
+      await _loadData(silent: true);
     } catch (e) {
       _showSnack('GPS error: $e', isError: true);
+    }
+  }
+
+  Future _openMapDirections(Map boy) async {
+    final b = Map.from(boy);
+    final lat = b['current_lat'];
+    final lng = b['current_lng'];
+    if (lat == null || lng == null) {
+      _showSnack('इस Delivery Boy की GPS लोकेशन उपलब्ध नहीं है।',
+          isError: true);
+      return;
+    }
+
+    final uri = Uri.parse(
+      'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng&travelmode=driving',
+    );
+    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!ok) {
+      _showSnack('Map app नहीं खुल सका।', isError: true);
     }
   }
 
@@ -347,6 +450,13 @@ class _DeliveryBoysScreenState extends State {
         foregroundColor: Colors.white,
         title: Text('Delivery Boys (${_boys.length})'),
         actions: [
+          IconButton(
+            tooltip: _autoTracking ? 'Auto Live ON' : 'Auto Live OFF',
+            icon: Icon(
+              _autoTracking ? Icons.radar : Icons.location_disabled,
+            ),
+            onPressed: _toggleAutoTracking,
+          ),
           IconButton(icon: const Icon(Icons.refresh), onPressed: _loadData),
         ],
       ),
@@ -377,6 +487,8 @@ class _DeliveryBoysScreenState extends State {
                       final resetReq = b['reset_requested'] == true;
                       final cnt = _deliveredCount[id] ?? 0;
                       final amt = _deliveredAmount[id] ?? 0;
+                      final hasCoords =
+                          b['current_lat'] != null && b['current_lng'] != null;
 
                       return Card(
                         color: Colors.white,
@@ -428,13 +540,17 @@ class _DeliveryBoysScreenState extends State {
                                     fontWeight: FontWeight.w600,
                                     color: Color(0xFF1B7A2B)),
                               ),
-                              if (b['current_lat'] != null &&
-                                  b['current_lng'] != null) ...[
+                              if (hasCoords) ...[
                                 const SizedBox(height: 4),
-                                Text(
-                                  'GPS: ${b['current_lat']}, ${b['current_lng']}',
-                                  style: const TextStyle(
-                                      fontSize: 12, color: Colors.black87),
+                                InkWell(
+                                  onTap: () => _openMapDirections(b),
+                                  child: Text(
+                                    'GPS: ${b['current_lat']}, ${b['current_lng']} (Map देखें)',
+                                    style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Color(0xFF1B7A2B),
+                                        decoration: TextDecoration.underline),
+                                  ),
                                 ),
                               ],
                               if ((b['location_updated_at'] ?? '')
@@ -457,25 +573,31 @@ class _DeliveryBoysScreenState extends State {
                                       color: Colors.orange.shade900),
                                 ),
                               ],
-                              if (_canManage) ...[
-                                const Divider(height: 18),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.end,
-                                  children: [
+                              const Divider(height: 18),
+                              Wrap(
+                                alignment: WrapAlignment.end,
+                                spacing: 4,
+                                children: [
+                                  if (hasCoords)
+                                    TextButton.icon(
+                                      onPressed: () => _openMapDirections(b),
+                                      icon: const Icon(Icons.directions,
+                                          size: 18),
+                                      label: const Text('Directions'),
+                                    ),
+                                  if (_canManage) ...[
                                     TextButton.icon(
                                       onPressed: () => _updateBoyLocation(b),
                                       icon: const Icon(Icons.my_location,
                                           size: 18),
                                       label: const Text('GPS'),
                                     ),
-                                    const SizedBox(width: 4),
                                     TextButton.icon(
                                       onPressed: () =>
                                           _openFormDialog(existing: b),
                                       icon: const Icon(Icons.edit, size: 18),
                                       label: const Text('Edit'),
                                     ),
-                                    const SizedBox(width: 4),
                                     TextButton.icon(
                                       style: TextButton.styleFrom(
                                           foregroundColor: Colors.red.shade700),
@@ -485,8 +607,8 @@ class _DeliveryBoysScreenState extends State {
                                       label: const Text('हटाएं'),
                                     ),
                                   ],
-                                ),
-                              ],
+                                ],
+                              ),
                             ],
                           ),
                         ),
