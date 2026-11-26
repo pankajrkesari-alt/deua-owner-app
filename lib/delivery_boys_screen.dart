@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class DeliveryBoysScreen extends StatefulWidget {
@@ -65,6 +66,50 @@ class _DeliveryBoysScreenState extends State {
       if (!mounted) return;
       setState(() => _loading = false);
       _showSnack('Load error: $e', isError: true);
+    }
+  }
+
+  Future _updateBoyLocation(Map boy) async {
+    final b = Map.from(boy);
+    final boyId = b['id'].toString();
+    final name = b['name']?.toString() ?? 'Delivery Boy';
+
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        _showSnack('कृपया फोन की GPS / Location सेवा चालू करें।',
+            isError: true);
+        return;
+      }
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        _showSnack('Location permission नहीं मिली। Settings से अनुमति दें।',
+            isError: true);
+        return;
+      }
+
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
+      );
+
+      await _supabase.from('deua_staff_accounts').update({
+        'current_lat': pos.latitude,
+        'current_lng': pos.longitude,
+        'location_updated_at': DateTime.now().toUtc().toIso8601String(),
+      }).eq('id', boyId);
+
+      _showSnack('$name की GPS लोकेशन अपडेट हो गई।');
+      await _loadData();
+    } catch (e) {
+      _showSnack('GPS error: $e', isError: true);
     }
   }
 
@@ -383,6 +428,25 @@ class _DeliveryBoysScreenState extends State {
                                     fontWeight: FontWeight.w600,
                                     color: Color(0xFF1B7A2B)),
                               ),
+                              if (b['current_lat'] != null &&
+                                  b['current_lng'] != null) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  'GPS: ${b['current_lat']}, ${b['current_lng']}',
+                                  style: const TextStyle(
+                                      fontSize: 12, color: Colors.black87),
+                                ),
+                              ],
+                              if ((b['location_updated_at'] ?? '')
+                                  .toString()
+                                  .isNotEmpty) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Updated: ${b['location_updated_at']}',
+                                  style: const TextStyle(
+                                      fontSize: 11.5, color: Colors.black54),
+                                ),
+                              ],
                               if (resetReq) ...[
                                 const SizedBox(height: 6),
                                 Text(
@@ -399,12 +463,19 @@ class _DeliveryBoysScreenState extends State {
                                   mainAxisAlignment: MainAxisAlignment.end,
                                   children: [
                                     TextButton.icon(
+                                      onPressed: () => _updateBoyLocation(b),
+                                      icon: const Icon(Icons.my_location,
+                                          size: 18),
+                                      label: const Text('GPS'),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    TextButton.icon(
                                       onPressed: () =>
                                           _openFormDialog(existing: b),
                                       icon: const Icon(Icons.edit, size: 18),
                                       label: const Text('Edit'),
                                     ),
-                                    const SizedBox(width: 8),
+                                    const SizedBox(width: 4),
                                     TextButton.icon(
                                       style: TextButton.styleFrom(
                                           foregroundColor: Colors.red.shade700),
