@@ -127,6 +127,8 @@ class _LoginScreenState extends State {
   bool _loading = false;
   String? _error;
 
+  LoginScreen get _w => widget as LoginScreen;
+
   Future _login() async {
     final email = _emailCtrl.text.trim().toLowerCase();
     final pass = _passCtrl.text;
@@ -171,7 +173,7 @@ class _LoginScreenState extends State {
         return;
       }
 
-      await widget.onSuccess(acc);
+      await _w.onSuccess(acc);
     } catch (e) {
       setState(() {
         _loading = false;
@@ -433,14 +435,16 @@ class _OwnerDashboardScreenState extends State {
   String _productSearch = '';
   final _searchCtrl = TextEditingController();
 
-  bool get _isOwner => widget.currentUser['role'].toString() == 'owner';
-  bool get _canOrders => _isOwner || widget.currentUser['can_orders'] == true;
-  bool get _canProducts => _isOwner || widget.currentUser['can_products'] == true;
-  bool get _canCategories => _isOwner || widget.currentUser['can_categories'] == true;
-  bool get _canHisab => _isOwner || widget.currentUser['can_hisab'] == true;
+  OwnerDashboardScreen get _w => widget as OwnerDashboardScreen;
 
-  List> _allowedTabs() {
-    final List> tabs = [];
+  bool get _isOwner => _w.currentUser['role'].toString() == 'owner';
+  bool get _canOrders => _isOwner || _w.currentUser['can_orders'] == true;
+  bool get _canProducts => _isOwner || _w.currentUser['can_products'] == true;
+  bool get _canCategories => _isOwner || _w.currentUser['can_categories'] == true;
+  bool get _canHisab => _isOwner || _w.currentUser['can_hisab'] == true;
+
+  List _allowedTabs() {
+    final List tabs = [];
     if (_canOrders) {
       tabs.add({'key': 'orders', 'title': 'लाइव ऑर्डर • Live Orders', 'label': 'Orders', 'icon': Icons.receipt_long});
     }
@@ -473,15 +477,15 @@ class _OwnerDashboardScreenState extends State {
       final meRows = await _supabase
           .from('deua_staff_accounts')
           .select()
-          .eq('id', widget.currentUser['id'].toString());
+          .eq('id', _w.currentUser['id'].toString());
       final meList = List.from(meRows as List);
       if (meList.isNotEmpty) {
         final freshMe = Map.from(meList.first as Map);
         if (freshMe['is_active'] != true) {
-          await widget.onLogout();
+          await _w.onLogout();
           return;
         }
-        widget.onUserUpdated(freshMe);
+        _w.onUserUpdated(freshMe);
       }
     } catch (_) {}
 
@@ -746,7 +750,7 @@ class _OwnerDashboardScreenState extends State {
             final st = Map.from(_staffList[i] as Map);
             final isMainOwner = st['role'].toString() == 'owner';
             final reqReset = st['reset_requested'] == true;
-            final List<String> perms = [];
+            final List perms = [];
             if (st['can_orders'] == true) perms.add('Orders');
             if (st['can_products'] == true) perms.add('Products');
             if (st['can_categories'] == true) perms.add('Categories');
@@ -858,7 +862,13 @@ class _OwnerDashboardScreenState extends State {
     final p2MrpCtrl = TextEditingController(text: p2['mrp']?.toString() ?? '');
 
     bool saving = false;
-    final bool hasValidCat = _categories.any((c) => Map.from(c as Map)['id'].toString() == selectedCat);
+    bool hasValidCat = false;
+    for (final c in _categories) {
+      if (Map.from(c as Map)['id'].toString() == selectedCat) {
+        hasValidCat = true;
+        break;
+      }
+    }
 
     showModalBottomSheet(
       context: context,
@@ -1474,7 +1484,7 @@ class _OwnerDashboardScreenState extends State {
     final tabs = _allowedTabs();
     final safeIdx = _tabIndex < tabs.length ? _tabIndex : 0;
     final currentTab = tabs.isNotEmpty
-        ? tabs[safeIdx]
+        ? Map.from(tabs[safeIdx] as Map)
         : {'key': 'orders', 'title': 'DEUA FRESH OWNER', 'label': 'Orders', 'icon': Icons.receipt_long};
 
     return Scaffold(
@@ -1485,7 +1495,7 @@ class _OwnerDashboardScreenState extends State {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '${_isOwner ? "OWNER" : "ADMIN"} • ${widget.currentUser['name']}',
+              '${_isOwner ? "OWNER" : "ADMIN"} • ${_w.currentUser['name']}',
               style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.amberAccent),
             ),
             Text(currentTab['title'].toString(), style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.bold)),
@@ -1496,7 +1506,7 @@ class _OwnerDashboardScreenState extends State {
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Logout',
-            onPressed: () async => await widget.onLogout(),
+            onPressed: () async => await _w.onLogout(),
           ),
         ],
       ),
@@ -1512,7 +1522,8 @@ class _OwnerDashboardScreenState extends State {
               backgroundColor: Colors.white,
               indicatorColor: const Color(0xFFE8F5E9),
               onDestinationSelected: (i) => setState(() => _tabIndex = i),
-              destinations: tabs.map((t) {
+              destinations: tabs.map((item) {
+                final t = Map.from(item as Map);
                 final ic = t['icon'] as IconData;
                 return NavigationDestination(
                   icon: Icon(ic),
