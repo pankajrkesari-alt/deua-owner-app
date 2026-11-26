@@ -60,31 +60,42 @@ class _OwnerDashboardScreenState extends State {
 
   Future _loadAllData() async {
     setState(() => _loading = true);
+    String? err;
+
     try {
       final ordRes = await _supabase
           .from('deua_orders')
           .select()
           .order('created_at', ascending: false);
+      _orders = List.from(ordRes as List);
+    } catch (e) {
+      err = 'Orders load error: $e';
+    }
+
+    try {
       final catRes = await _supabase
           .from('deua_main_categories')
           .select()
           .order('sort_order');
+      _categories = List.from(catRes as List);
+    } catch (e) {
+      err ??= 'Categories load error: $e';
+    }
+
+    try {
       final prodRes = await _supabase
           .from('deua_products')
           .select()
           .order('created_at', ascending: false);
+      _products = List.from(prodRes as List);
+    } catch (e) {
+      err ??= 'Products load error: $e';
+    }
 
-      if (!mounted) return;
-      setState(() {
-        _orders = List.from(ordRes as List);
-        _categories = List.from(catRes as List);
-        _products = List.from(prodRes as List);
-        _loading = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _loading = false);
-      _showMsg('Data load karne mein samasya aayi. Refresh dabayein.', isError: true);
+    if (!mounted) return;
+    setState(() => _loading = false);
+    if (err != null) {
+      _showMsg(err, isError: true);
     }
   }
 
@@ -92,7 +103,7 @@ class _OwnerDashboardScreenState extends State {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(text),
+        content: Text(text, maxLines: 3, overflow: TextOverflow.ellipsis),
         backgroundColor: isError ? Colors.red.shade700 : const Color(0xFF1B7A2B),
       ),
     );
@@ -142,8 +153,8 @@ class _OwnerDashboardScreenState extends State {
           .eq('id', orderId);
       await _loadAllData();
       _showMsg('Order status "$newStatus" kar diya gaya.');
-    } catch (_) {
-      _showMsg('Status update nahi ho paya.', isError: true);
+    } catch (e) {
+      _showMsg('Status update error: $e', isError: true);
     }
   }
 
@@ -155,8 +166,8 @@ class _OwnerDashboardScreenState extends State {
           .eq('id', prodId);
       await _loadAllData();
       _showMsg(newValue ? 'Saman In Stock kar diya gaya.' : 'Saman Out of Stock kar diya gaya.');
-    } catch (_) {
-      _showMsg('Stock update nahi ho paya.', isError: true);
+    } catch (e) {
+      _showMsg('Stock update error: $e', isError: true);
     }
   }
 
@@ -388,9 +399,9 @@ class _OwnerDashboardScreenState extends State {
                                 Navigator.pop(ctx);
                                 await _loadAllData();
                                 _showMsg(isEdit ? 'Saman update ho gaya!' : 'Naya saman dukaan mein jud gaya!');
-                              } catch (_) {
+                              } catch (e) {
                                 setModal(() => saving = false);
-                                _showMsg('Save karne mein samasya aayi.', isError: true);
+                                _showMsg('Save error: $e', isError: true);
                               }
                             },
                       child: Text(
@@ -526,9 +537,9 @@ class _OwnerDashboardScreenState extends State {
                                 Navigator.pop(ctx);
                                 await _loadAllData();
                                 _showMsg(isEdit ? 'Category update ho gayi!' : 'Nayi category jud gayi!');
-                              } catch (_) {
+                              } catch (e) {
                                 setModal(() => saving = false);
-                                _showMsg('Category save nahi ho payi.', isError: true);
+                                _showMsg('Category error: $e', isError: true);
                               }
                             },
                       child: Text(
