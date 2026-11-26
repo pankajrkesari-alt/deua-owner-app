@@ -18,8 +18,10 @@ jobs:
       - name: Generate Android project files
         run: flutter create --org com.deuafresh --project-name deua_owner_app .
 
-      - name: Add Internet Permission
-        run: sed -i 's/<application/<uses-permission android:name="android.permission.INTERNET"\/>\n    <application/' android/app/src/main/AndroidManifest.xml
+      - name: Add Android permissions
+        run: |
+          sed -i 's/<application/<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"\/>\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"\/>\n    <application/' android/app/src/main/AndroidManifest.xml
+          sed -i 's/<application/<uses-permission android:name="android.permission.INTERNET"\/>\n    <application/' android/app/src/main/AndroidManifest.xml
 
       - name: Install dependencies
         run: flutter pub get
