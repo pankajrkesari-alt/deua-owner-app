@@ -35,17 +35,17 @@ class OwnerDashboardScreen extends StatefulWidget {
   const OwnerDashboardScreen({super.key});
 
   @override
-  State<OwnerDashboardScreen> createState() => _OwnerDashboardScreenState();
+  State createState() => _OwnerDashboardScreenState();
 }
 
-class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
+class _OwnerDashboardScreenState extends State {
   final _supabase = Supabase.instance.client;
   int _tabIndex = 0;
   bool _loading = true;
 
-  List> _orders = [];
-  List> _products = [];
-  List> _categories = [];
+  List _orders = [];
+  List _products = [];
+  List _categories = [];
 
   String _orderFilter = 'All';
   String _selectedProductCat = 'all';
@@ -58,7 +58,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
     _loadAllData();
   }
 
-  Future<void> _loadAllData() async {
+  Future _loadAllData() async {
     setState(() => _loading = true);
     try {
       final ordRes = await _supabase
@@ -76,12 +76,12 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
 
       if (!mounted) return;
       setState(() {
-        _orders = List>.from(ordRes as List);
-        _categories = List>.from(catRes as List);
-        _products = List>.from(prodRes as List);
+        _orders = List.from(ordRes as List);
+        _categories = List.from(catRes as List);
+        _products = List.from(prodRes as List);
         _loading = false;
       });
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       setState(() => _loading = false);
       _showMsg('Data load karne mein samasya aayi. Refresh dabayein.', isError: true);
@@ -123,7 +123,8 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
   }
 
   String _categoryLabel(String catId) {
-    for (final c in _categories) {
+    for (final item in _categories) {
+      final c = Map.from(item as Map);
       if (c['id'].toString() == catId) {
         final h = (c['hindi_name'] ?? '').toString();
         final e = (c['name'] ?? '').toString();
@@ -133,7 +134,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
     return catId;
   }
 
-  Future<void> _updateOrderStatus(dynamic orderId, String newStatus) async {
+  Future _updateOrderStatus(dynamic orderId, String newStatus) async {
     try {
       await _supabase
           .from('deua_orders')
@@ -146,7 +147,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
     }
   }
 
-  Future<void> _toggleProductStock(String prodId, bool newValue) async {
+  Future _toggleProductStock(String prodId, bool newValue) async {
     try {
       await _supabase
           .from('deua_products')
@@ -159,18 +160,18 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
     }
   }
 
-  void _openProductForm({Map<String, dynamic>? existing}) {
+  void _openProductForm({Map? existing}) {
     final isEdit = existing != null;
     final nameCtrl = TextEditingController(text: existing?['name']?.toString() ?? '');
     final imgCtrl = TextEditingController(text: existing?['image_url']?.toString() ?? '');
     final discCtrl = TextEditingController(text: (existing?['discount_percent'] ?? 10).toString());
 
     String selectedCat = existing?['main_category_id']?.toString() ??
-        (_categories.isNotEmpty ? _categories.first['id'].toString() : 'fruits');
+        (_categories.isNotEmpty ? Map.from(_categories.first as Map)['id'].toString() : 'fruits');
 
     final existingPacks = existing?['packs'] is List ? List.from(existing!['packs'] as List) : [];
-    final p1 = existingPacks.isNotEmpty ? Map<String, dynamic>.from(existingPacks[0] as Map) : <String, dynamic>{};
-    final p2 = existingPacks.length > 1 ? Map<String, dynamic>.from(existingPacks[1] as Map) : <String, dynamic>{};
+    final p1 = existingPacks.isNotEmpty ? Map.from(existingPacks[0] as Map) : {};
+    final p2 = existingPacks.length > 1 ? Map.from(existingPacks[1] as Map) : {};
 
     final p1LabelCtrl = TextEditingController(text: p1['label']?.toString() ?? '500g');
     final p1PriceCtrl = TextEditingController(text: p1['price']?.toString() ?? '');
@@ -181,6 +182,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
     final p2MrpCtrl = TextEditingController(text: p2['mrp']?.toString() ?? '');
 
     bool saving = false;
+    final bool hasValidCat = _categories.any((c) => Map.from(c as Map)['id'].toString() == selectedCat);
 
     showModalBottomSheet(
       context: context,
@@ -215,19 +217,20 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                     ],
                   ),
                   const SizedBox(height: 10),
-                  DropdownButtonFormField<String>(
-                    value: _categories.any((c) => c['id'].toString() == selectedCat) ? selectedCat : null,
+                  DropdownButtonFormField(
+                    value: hasValidCat ? selectedCat : null,
                     decoration: const InputDecoration(
                       labelText: 'श्रेणी चुनें (Select Category)',
                       border: OutlineInputBorder(),
                       isDense: true,
                     ),
-                    items: _categories.map((c) {
+                    items: _categories.map((item) {
+                      final c = Map.from(item as Map);
                       final id = c['id'].toString();
                       return DropdownMenuItem(value: id, child: Text(_categoryLabel(id)));
                     }).toList(),
                     onChanged: (v) {
-                      if (v != null) setModal(() => selectedCat = v);
+                      if (v != null) setModal(() => selectedCat = v.toString());
                     },
                   ),
                   const SizedBox(height: 10),
@@ -347,7 +350,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                                 return;
                               }
                               final p1Mrp = double.tryParse(p1MrpCtrl.text.trim()) ?? p1Price;
-                              final List> packsList = [
+                              final List packsList = [
                                 {
                                   'label': p1LabelCtrl.text.trim().isEmpty ? '1 pack' : p1LabelCtrl.text.trim(),
                                   'price': p1Price,
@@ -405,7 +408,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
     );
   }
 
-  void _openCategoryForm({Map<String, dynamic>? existing}) {
+  void _openCategoryForm({Map? existing}) {
     final isEdit = existing != null;
     final hindiCtrl = TextEditingController(text: existing?['hindi_name']?.toString() ?? '');
     final engCtrl = TextEditingController(text: existing?['name']?.toString() ?? '');
@@ -559,10 +562,13 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
   }
 
   Widget _ordersTab() {
-    final filtered = _orders.where((o) {
-      if (_orderFilter == 'All') return true;
-      return (o['status'] ?? 'Pending').toString() == _orderFilter;
-    }).toList();
+    final List filtered = [];
+    for (final item in _orders) {
+      final o = Map.from(item as Map);
+      if (_orderFilter == 'All' || (o['status'] ?? 'Pending').toString() == _orderFilter) {
+        filtered.add(o);
+      }
+    }
 
     return Column(
       children: [
@@ -604,7 +610,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                     padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
                     itemCount: filtered.length,
                     itemBuilder: (_, i) {
-                      final ord = filtered[i];
+                      final ord = Map.from(filtered[i] as Map);
                       final status = (ord['status'] ?? 'Pending').toString();
                       final items = ord['items'] is List ? List.from(ord['items'] as List) : [];
                       final sColor = _statusColor(status);
@@ -646,7 +652,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                               ),
                               const Divider(height: 14),
                               ...items.map((it) {
-                                final m = Map<String, dynamic>.from(it as Map);
+                                final m = Map.from(it as Map);
                                 return Padding(
                                   padding: const EdgeInsets.only(bottom: 3),
                                   child: Row(
@@ -674,8 +680,8 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                                     'कुल: ₹${ord['total_amount']} (${ord['payment_method'] ?? 'COD'})',
                                     style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15, color: Color(0xFF1B7A2B)),
                                   ),
-                                  PopupMenuButton<String>(
-                                    onSelected: (val) => _updateOrderStatus(ord['id'], val),
+                                  PopupMenuButton(
+                                    onSelected: (val) => _updateOrderStatus(ord['id'], val.toString()),
                                     itemBuilder: (_) => const [
                                       PopupMenuItem(value: 'Pending', child: Text('Pending')),
                                       PopupMenuItem(value: 'Out for Delivery', child: Text('Out for Delivery')),
@@ -712,12 +718,14 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
   }
 
   Widget _productsTab() {
-    final filtered = _products.where((p) {
+    final List filtered = [];
+    for (final item in _products) {
+      final p = Map.from(item as Map);
       final matchCat = _selectedProductCat == 'all' || p['main_category_id'].toString() == _selectedProductCat;
       final matchSearch = _productSearch.isEmpty ||
           p['name'].toString().toLowerCase().contains(_productSearch.toLowerCase());
-      return matchCat && matchSearch;
-    }).toList();
+      if (matchCat && matchSearch) filtered.add(p);
+    }
 
     return Scaffold(
       body: Column(
@@ -757,7 +765,8 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                     onSelected: (_) => setState(() => _selectedProductCat = 'all'),
                   ),
                 ),
-                ..._categories.map((c) {
+                ..._categories.map((item) {
+                  final c = Map.from(item as Map);
                   final id = c['id'].toString();
                   final sel = _selectedProductCat == id;
                   final label = (c['hindi_name'] ?? c['name']).toString();
@@ -786,11 +795,11 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                 padding: const EdgeInsets.fromLTRB(12, 4, 12, 80),
                 itemCount: filtered.length,
                 itemBuilder: (_, i) {
-                  final prod = filtered[i];
+                  final prod = Map.from(filtered[i] as Map);
                   final inStock = prod['in_stock'] == true;
                   final packs = prod['packs'] is List ? List.from(prod['packs'] as List) : [];
                   final packText = packs.map((x) {
-                    final m = Map<String, dynamic>.from(x as Map);
+                    final m = Map.from(x as Map);
                     return '${m['label']}: ₹${m['price']}';
                   }).join(' | ');
 
@@ -857,9 +866,12 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 80),
           itemCount: _categories.length,
           itemBuilder: (_, i) {
-            final cat = _categories[i];
+            final cat = Map.from(_categories[i] as Map);
             final id = cat['id'].toString();
-            final count = _products.where((p) => p['main_category_id'].toString() == id).length;
+            int count = 0;
+            for (final item in _products) {
+              if (Map.from(item as Map)['main_category_id'].toString() == id) count++;
+            }
 
             return Card(
               color: Colors.white,
@@ -898,7 +910,8 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
     double deliveredRevenue = 0;
     int pendingCount = 0;
 
-    for (final o in _orders) {
+    for (final item in _orders) {
+      final o = Map.from(item as Map);
       final st = (o['status'] ?? 'Pending').toString();
       final amt = (o['total_amount'] as num? ?? 0).toDouble();
       if (st != 'Cancelled') totalRevenue += amt;
