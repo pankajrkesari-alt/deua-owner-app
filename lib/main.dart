@@ -1,11 +1,11 @@
+import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'delivery_boys_screen.dart';
-import 'service_pincodes_screen.dart';
 
 const String kOwnerRecoveryKey = 'Deua199800';
+const Duration kIdleLogoutDuration = Duration(minutes: 30);
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -59,21 +59,33 @@ class _AuthGateScreenState extends State {
     try {
       final prefs = await SharedPreferences.getInstance();
       final savedId = prefs.getString('logged_in_user_id') ?? '';
+      final lastActiveMs = prefs.getInt('last_active_ms') ?? 0;
+
       if (savedId.isNotEmpty) {
-        final rows = await _supabase
-            .from('deua_staff_accounts')
-            .select()
-            .eq('id', savedId);
-        final list = List.from(rows as List);
-        if (list.isNotEmpty) {
-          final acc = Map.from(list.first as Map);
-          if (acc['is_active'] == true) {
-            if (!mounted) return;
-            setState(() {
-              _activeUser = acc;
-              _checking = false;
-            });
-            return;
+        final nowMs = DateTime.now().millisecondsSinceEpoch;
+        final isExpired = lastActiveMs <= 0 ||
+            (nowMs - lastActiveMs) >= kIdleLogoutDuration.inMilliseconds;
+
+        if (isExpired) {
+          await prefs.remove('logged_in_user_id');
+          await prefs.remove('last_active_ms');
+        } else {
+          final rows = await _supabase
+              .from('deua_staff_accounts')
+              .select()
+              .eq('id', savedId);
+          final list = List.from(rows as List);
+          if (list.isNotEmpty) {
+            final acc = Map.from(list.first as Map);
+            if (acc['is_active'] == true) {
+              await prefs.setInt('last_active_ms', nowMs);
+              if (!mounted) return;
+              setState(() {
+                _activeUser = acc;
+                _checking = false;
+              });
+              return;
+            }
           }
         }
       }
@@ -85,6 +97,7 @@ class _AuthGateScreenState extends State {
   Future _onLoggedIn(Map user) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('logged_in_user_id', user['id'].toString());
+    await prefs.setInt('last_active_ms', DateTime.now().millisecondsSinceEpoch);
     if (!mounted) return;
     setState(() => _activeUser = user);
   }
@@ -92,6 +105,7 @@ class _AuthGateScreenState extends State {
   Future _onLogout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('logged_in_user_id');
+    await prefs.remove('last_active_ms');
     if (!mounted) return;
     setState(() => _activeUser = null);
   }
@@ -423,9 +437,14 @@ class OwnerDashboardScreen extends StatefulWidget {
   State createState() => _OwnerDashboardScreenState();
 }
 
-class _OwnerDashboardScreenState extends State {
+class _OwnerDashboardScreenState extends State with WidgetsBindingObserver {
   final _supabase = Supabase.instance.client;
   bool _loading = true;
+  bool _loggingOutForIdle = false;
+  Timer? _idleTimer;
+  Timer? _clockTimer;
+  DateTime _now = DateTime.now();
+  DateTime _lastPrefsWrite = DateTime.fromMillisecondsSinceEpoch(0);
 
   List _orders = [];
   List _products = [];
@@ -451,11 +470,98 @@ class _OwnerDashboardScreenState extends State {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _startClockTimer();
+    _resetIdleTimer(forcePersist: true);
     _loadAllData();
   }
 
+  void _startClockTimer() {
+    _clockTimer?.cancel();
+    _clockTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (!mounted) return;
+      setState(() => _now = DateTime.now());
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _idleTimer?.cancel();
+    _clockTimer?.cancel();
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      if (mounted) {
+        setState(() => _now = DateTime.now());
+      }
+      _checkIdleAndReset();
+    }
+  }
+
+  Future _checkIdleAndReset() async {
+    if (_loggingOutForIdle) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final lastActiveMs = prefs.getInt('last_active_ms') ?? 0;
+      final nowMs = DateTime.now().millisecondsSinceEpoch;
+      if (lastActiveMs > 0 &&
+          (nowMs - lastActiveMs) >= kIdleLogoutDuration.inMilliseconds) {
+        await _triggerIdleLogout();
+        return;
+      }
+      _resetIdleTimer(forcePersist: true);
+    } catch (_) {
+      _resetIdleTimer(forcePersist: true);
+    }
+  }
+
+  void _resetIdleTimer({bool forcePersist = false}) {
+    if (_loggingOutForIdle) return;
+    _idleTimer?.cancel();
+    _idleTimer = Timer(kIdleLogoutDuration, () {
+      _triggerIdleLogout();
+    });
+
+    final now = DateTime.now();
+    if (forcePersist || now.difference(_lastPrefsWrite).inSeconds >= 15) {
+      _lastPrefsWrite = now;
+      SharedPreferences.getInstance().then((prefs) {
+        prefs.setInt('last_active_ms', now.millisecondsSinceEpoch);
+      });
+    }
+  }
+
+  Future _triggerIdleLogout() async {
+    if (_loggingOutForIdle) return;
+    _loggingOutForIdle = true;
+    _idleTimer?.cancel();
+    _clockTimer?.cancel();
+
+    if (mounted) {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    }
+
+    await _w.onLogout();
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('30 मिनट तक काम न होने के कारण Auto Logout हो गया।'),
+        ),
+      );
+    }
+  }
+
   Future _loadAllData() async {
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _now = DateTime.now();
+    });
     String? err;
 
     try {
@@ -522,22 +628,23 @@ class _OwnerDashboardScreenState extends State {
     );
   }
 
-  String _formattedTodayDate() {
-    final now = DateTime.now();
+  String _formattedDateTimeText() {
     const months = [
       'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
     ];
-    final day = now.day.toString().padLeft(2, '0');
-    final month = months[now.month - 1];
-    return '$day $month ${now.year}';
+    final day = _now.day.toString().padLeft(2, '0');
+    final month = months[_now.month - 1];
+    final hour24 = _now.hour;
+    final period = hour24 >= 12 ? 'PM' : 'AM';
+    final hour12 = hour24 % 12 == 0 ? 12 : hour24 % 12;
+    final minute = _now.minute.toString().padLeft(2, '0');
+    return '$day $month ${_now.year} • $hour12:$minute $period';
   }
 
   String _ownerGlassBadgeText() {
-    final rawName = (_w.currentUser['name'] ?? '').toString().trim();
-    final displayName = rawName.isNotEmpty ? rawName : 'Pankaj R Kesari';
     final roleTag = _isOwner ? 'OWNER' : 'ADMIN';
-    return '$roleTag • $displayName';
+    return '$roleTag • Pankaj R Kesari';
   }
 
   int _countOrdersByFilter(String filter) {
@@ -555,25 +662,36 @@ class _OwnerDashboardScreenState extends State {
     required Widget body,
     bool noAccess = false,
   }) {
+    _resetIdleTimer(forcePersist: true);
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => Scaffold(
-          appBar: AppBar(
-            backgroundColor: const Color(0xFF1B7A2B),
-            foregroundColor: Colors.white,
-            title: Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            actions: [
-              IconButton(icon: const Icon(Icons.refresh), onPressed: _loadAllData),
-            ],
+        builder: (_) => Listener(
+          onPointerDown: (_) => _resetIdleTimer(),
+          onPointerMove: (_) => _resetIdleTimer(),
+          child: Scaffold(
+            appBar: AppBar(
+              backgroundColor: const Color(0xFF1B7A2B),
+              foregroundColor: Colors.white,
+              title: Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  onPressed: () {
+                    _resetIdleTimer(forcePersist: true);
+                    _loadAllData();
+                  },
+                ),
+              ],
+            ),
+            body: noAccess
+                ? const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(20),
+                      child: Text('इस सेक्शन का Access अभी नहीं मिला है। Owner से संपर्क करें।', textAlign: TextAlign.center),
+                    ),
+                  )
+                : body,
           ),
-          body: noAccess
-              ? const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(20),
-                    child: Text('इस सेक्शन का Access अभी नहीं मिला है। Owner से संपर्क करें।', textAlign: TextAlign.center),
-                  ),
-                )
-              : body,
         ),
       ),
     );
@@ -611,22 +729,36 @@ class _OwnerDashboardScreenState extends State {
   }
 
   void _openDeliveryPinPage() {
+    _resetIdleTimer(forcePersist: true);
     if (!_canPincodes) {
       _showMsg('Delivery PIN का Access नहीं मिला है।', isError: true);
       return;
     }
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => ServicePincodesScreen(actorRole: _role)),
+      MaterialPageRoute(
+        builder: (_) => Listener(
+          onPointerDown: (_) => _resetIdleTimer(),
+          onPointerMove: (_) => _resetIdleTimer(),
+          child: ServicePincodesScreen(actorRole: _role),
+        ),
+      ),
     );
   }
 
   void _openDeliveryBoysPage() {
+    _resetIdleTimer(forcePersist: true);
     if (!_canDeliveryBoys) {
       _showMsg('Delivery Boys का Access नहीं मिला है।', isError: true);
       return;
     }
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => DeliveryBoysScreen(actorRole: _role)),
+      MaterialPageRoute(
+        builder: (_) => Listener(
+          onPointerDown: (_) => _resetIdleTimer(),
+          onPointerMove: (_) => _resetIdleTimer(),
+          child: DeliveryBoysScreen(actorRole: _role),
+        ),
+      ),
     );
   }
 
@@ -639,6 +771,7 @@ class _OwnerDashboardScreenState extends State {
   }
 
   void _openAdminManagementPage() {
+    _resetIdleTimer(forcePersist: true);
     if (!_isOwner) {
       _showMsg('Admin Management सिर्फ Owner के लिए है।', isError: true);
       return;
@@ -1618,7 +1751,7 @@ class _OwnerDashboardScreenState extends State {
     );
   }
 
-  Widget _buildTopGlassHeader(String badgeText, String dateStr) {
+  Widget _buildTopGlassHeader(String badgeText, String dateTimeStr) {
     return Container(
       width: double.infinity,
       decoration: const BoxDecoration(
@@ -1632,20 +1765,20 @@ class _OwnerDashboardScreenState extends State {
           ],
         ),
         borderRadius: BorderRadius.vertical(
-          bottom: Radius.circular(24),
+          bottom: Radius.circular(20),
         ),
         boxShadow: [
           BoxShadow(
             color: Color(0x330E3B20),
-            blurRadius: 12,
-            offset: Offset(0, 5),
+            blurRadius: 10,
+            offset: Offset(0, 4),
           ),
         ],
       ),
       child: SafeArea(
         bottom: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 10, 12, 16),
+          padding: const EdgeInsets.fromLTRB(14, 6, 10, 11),
           child: Column(
             children: [
               Row(
@@ -1653,21 +1786,27 @@ class _OwnerDashboardScreenState extends State {
                   const Expanded(
                     child: Text(
                       'DEUA FRESH • Owner Dashboard',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 18,
+                        fontSize: 16.5,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.2,
                       ),
                     ),
                   ),
                   IconButton(
-                    onPressed: _loadAllData,
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () {
+                      _resetIdleTimer(forcePersist: true);
+                      _loadAllData();
+                    },
                     tooltip: 'Refresh',
                     icon: _loading
                         ? const SizedBox(
-                            width: 18,
-                            height: 18,
+                            width: 16,
+                            height: 16,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
                               color: Colors.white,
@@ -1676,21 +1815,26 @@ class _OwnerDashboardScreenState extends State {
                         : const Icon(
                             Icons.refresh_rounded,
                             color: Colors.white,
-                            size: 22,
+                            size: 20,
                           ),
                   ),
                   IconButton(
-                    onPressed: () async => await _w.onLogout(),
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () async {
+                      _idleTimer?.cancel();
+                      _clockTimer?.cancel();
+                      await _w.onLogout();
+                    },
                     tooltip: 'Logout',
                     icon: const Icon(
                       Icons.logout_rounded,
                       color: Colors.white,
-                      size: 21,
+                      size: 20,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               ClipRRect(
                 borderRadius: BorderRadius.circular(30),
                 child: BackdropFilter(
@@ -1698,8 +1842,8 @@ class _OwnerDashboardScreenState extends State {
                   child: Container(
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 8,
+                      horizontal: 12,
+                      vertical: 6,
                     ),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
@@ -1727,28 +1871,28 @@ class _OwnerDashboardScreenState extends State {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Container(
-                          padding: const EdgeInsets.all(4),
+                          padding: const EdgeInsets.all(3),
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: const Color(0xFFFFD54F).withValues(alpha: 0.25),
                           ),
                           child: const Icon(
                             Icons.verified_user_rounded,
-                            size: 15,
+                            size: 14,
                             color: Color(0xFFFFE082),
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 7),
                         Flexible(
                           child: Text(
-                            '$badgeText  |  $dateStr',
+                            '$badgeText  |  $dateTimeStr',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               color: Colors.white,
-                              fontSize: 12.5,
+                              fontSize: 11.5,
                               fontWeight: FontWeight.w600,
-                              letterSpacing: 0.2,
+                              letterSpacing: 0.15,
                             ),
                           ),
                         ),
@@ -1779,7 +1923,7 @@ class _OwnerDashboardScreenState extends State {
                 onTap: () => _openOrdersPage(initialFilter: 'All'),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             Expanded(
               child: _Glossy3DStatCard(
                 label: 'Pending',
@@ -1792,7 +1936,7 @@ class _OwnerDashboardScreenState extends State {
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         Row(
           children: [
             Expanded(
@@ -1805,7 +1949,7 @@ class _OwnerDashboardScreenState extends State {
                 onTap: () => _openOrdersPage(initialFilter: 'Out for Delivery'),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             Expanded(
               child: _Glossy3DStatCard(
                 label: 'Delivered',
@@ -1850,18 +1994,21 @@ class _OwnerDashboardScreenState extends State {
     final deliveryBoysCard = _3DGridCard(
       label: 'Delivery Boys',
       iconWidget: const _3DDeliveryTruckIcon(),
+      compact: true,
       onTap: _openDeliveryBoysPage,
     );
 
     final reportsCard = _3DGridCard(
       label: 'Reports',
       iconWidget: const _3DChartIcon(),
+      compact: true,
       onTap: _openReportsPage,
     );
 
     final adminManagementCard = _3DGridCard(
       label: 'Admin\nManagement',
       iconWidget: const _3DAdminUsersIcon(),
+      compact: true,
       onTap: _openAdminManagementPage,
     );
 
@@ -1870,26 +2017,26 @@ class _OwnerDashboardScreenState extends State {
         Row(
           children: [
             Expanded(child: ordersCard),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             Expanded(child: productsCard),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         Row(
           children: [
             Expanded(child: categoriesCard),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             Expanded(child: deliveryPinCard),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(child: deliveryBoysCard),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
             Expanded(child: reportsCard),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
             Expanded(child: adminManagementCard),
           ],
         ),
@@ -1899,33 +2046,263 @@ class _OwnerDashboardScreenState extends State {
 
   @override
   Widget build(BuildContext context) {
-    final dateStr = _formattedTodayDate();
+    final dateTimeStr = _formattedDateTimeText();
     final badgeText = _ownerGlassBadgeText();
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF3F6F4),
-      body: Column(
-        children: [
-          _buildTopGlassHeader(badgeText, dateStr),
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: _loadAllData,
-              color: const Color(0xFF1B7A2B),
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(14, 14, 14, 24),
-                child: Column(
-                  children: [
-                    _buildFourGlossyStatButtons(),
-                    const SizedBox(height: 16),
-                    _buildSevenIconGrid(),
-                  ],
+    return Listener(
+      onPointerDown: (_) => _resetIdleTimer(),
+      onPointerMove: (_) => _resetIdleTimer(),
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF3F6F4),
+        body: Column(
+          children: [
+            _buildTopGlassHeader(badgeText, dateTimeStr),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: () {
+                  _resetIdleTimer(forcePersist: true);
+                  return _loadAllData();
+                },
+                color: const Color(0xFF1B7A2B),
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 14),
+                  child: Column(
+                    children: [
+                      _buildFourGlossyStatButtons(),
+                      const SizedBox(height: 10),
+                      _buildSevenIconGrid(),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class DeliveryBoysScreen extends StatefulWidget {
+  final String actorRole;
+  const DeliveryBoysScreen({super.key, this.actorRole = 'owner'});
+
+  @override
+  State createState() => _DeliveryBoysScreenState();
+}
+
+class _DeliveryBoysScreenState extends State {
+  final _supabase = Supabase.instance.client;
+  List _boys = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBoys();
+  }
+
+  Future _loadBoys() async {
+    setState(() => _loading = true);
+    try {
+      final res = await _supabase
+          .from('deua_staff_accounts')
+          .select()
+          .eq('role', 'delivery_boy');
+      if (mounted) {
+        setState(() {
+          _boys = List.from(res as List);
+        });
+      }
+    } catch (_) {
+      try {
+        final res = await _supabase.from('deua_delivery_boys').select();
+        if (mounted) {
+          setState(() {
+            _boys = List.from(res as List);
+          });
+        }
+      } catch (_) {}
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF1B7A2B),
+        foregroundColor: Colors.white,
+        title: const Text('डिलीवरी बॉय • Delivery Boys'),
+        actions: [
+          IconButton(onPressed: _loadBoys, icon: const Icon(Icons.refresh)),
         ],
       ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFF1B7A2B)))
+          : _boys.isEmpty
+              ? const Center(child: Text('अभी कोई Delivery Boy नहीं मिला है।'))
+              : ListView.builder(
+                  padding: const EdgeInsets.all(12),
+                  itemCount: _boys.length,
+                  itemBuilder: (_, i) {
+                    final b = Map.from(_boys[i] as Map);
+                    final name = (b['name'] ?? 'Delivery Boy').toString();
+                    final phone = (b['phone'] ?? b['email'] ?? '').toString();
+                    final active = b['is_active'] != false;
+                    return Card(
+                      color: Colors.white,
+                      margin: const EdgeInsets.only(bottom: 8),
+                      child: ListTile(
+                        leading: const CircleAvatar(
+                          backgroundColor: Color(0xFFE8F5E9),
+                          child: Icon(Icons.delivery_dining, color: Color(0xFF1B7A2B)),
+                        ),
+                        title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text(phone),
+                        trailing: Text(
+                          active ? 'Active' : 'Inactive',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: active ? const Color(0xFF1B7A2B) : Colors.red,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+    );
+  }
+}
+
+class ServicePincodesScreen extends StatefulWidget {
+  final String actorRole;
+  const ServicePincodesScreen({super.key, this.actorRole = 'owner'});
+
+  @override
+  State createState() => _ServicePincodesScreenState();
+}
+
+class _ServicePincodesScreenState extends State {
+  final _supabase = Supabase.instance.client;
+  List _pins = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPins();
+  }
+
+  Future _loadPins() async {
+    setState(() => _loading = true);
+    try {
+      final res = await _supabase.from('deua_service_pincodes').select();
+      if (mounted) {
+        setState(() {
+          _pins = List.from(res as List);
+        });
+      }
+    } catch (_) {}
+    if (mounted) setState(() => _loading = false);
+  }
+
+  Future _addPinDialog() async {
+    final pinCtrl = TextEditingController();
+    final areaCtrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Add Delivery PIN'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: pinCtrl,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              decoration: const InputDecoration(labelText: 'PIN Code'),
+            ),
+            TextField(
+              controller: areaCtrl,
+              decoration: const InputDecoration(labelText: 'Area Name'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Save')),
+        ],
+      ),
+    );
+    if (ok == true && pinCtrl.text.trim().isNotEmpty) {
+      try {
+        await _supabase.from('deua_service_pincodes').insert({
+          'pincode': pinCtrl.text.trim(),
+          'area_name': areaCtrl.text.trim(),
+          'is_active': true,
+        });
+        await _loadPins();
+      } catch (_) {}
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF1B7A2B),
+        foregroundColor: Colors.white,
+        title: const Text('डिलीवरी पिन कोड • Pin Codes'),
+        actions: [
+          IconButton(onPressed: _loadPins, icon: const Icon(Icons.refresh)),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: const Color(0xFF1B7A2B),
+        foregroundColor: Colors.white,
+        onPressed: _addPinDialog,
+        icon: const Icon(Icons.add),
+        label: const Text('Add PIN'),
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFF1B7A2B)))
+          : _pins.isEmpty
+              ? const Center(child: Text('अभी कोई Pin Code नहीं जुड़ा है।'))
+              : ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 80),
+                  itemCount: _pins.length,
+                  itemBuilder: (_, i) {
+                    final item = Map.from(_pins[i] as Map);
+                    final active = item['is_active'] != false;
+                    return Card(
+                      color: Colors.white,
+                      margin: const EdgeInsets.only(bottom: 8),
+                      child: ListTile(
+                        title: Text(
+                          '${item['pincode'] ?? ''} - ${item['area_name'] ?? ''}',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Text(active ? 'ACTIVE' : 'INACTIVE'),
+                        trailing: Switch(
+                          value: active,
+                          activeColor: const Color(0xFF1B7A2B),
+                          onChanged: (val) async {
+                            try {
+                              await _supabase
+                                  .from('deua_service_pincodes')
+                                  .update({'is_active': val})
+                                  .eq('id', item['id']);
+                              await _loadPins();
+                            } catch (_) {}
+                          },
+                        ),
+                      ),
+                    );
+                  },
+                ),
     );
   }
 }
@@ -1951,42 +2328,42 @@ class _Glossy3DStatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.transparent,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         child: Container(
-          height: 64,
+          height: 50,
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [topColor, bottomColor],
             ),
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: borderColor.withValues(alpha: 0.75),
-              width: 1.4,
+              width: 1.3,
             ),
             boxShadow: [
               BoxShadow(
-                color: bottomColor.withValues(alpha: 0.45),
-                blurRadius: 8,
-                offset: const Offset(0, 4),
+                color: bottomColor.withValues(alpha: 0.42),
+                blurRadius: 7,
+                offset: const Offset(0, 3),
               ),
             ],
           ),
           child: Stack(
             children: [
               Positioned(
-                top: 3,
-                left: 8,
-                right: 8,
-                height: 22,
+                top: 2,
+                left: 7,
+                right: 7,
+                height: 17,
                 child: IgnorePointer(
                   child: Container(
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(12),
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
@@ -2001,7 +2378,7 @@ class _Glossy3DStatCard extends StatelessWidget {
               ),
               Center(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -2012,8 +2389,9 @@ class _Glossy3DStatCard extends StatelessWidget {
                         textAlign: TextAlign.center,
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 14.5,
+                          fontSize: 13.5,
                           fontWeight: FontWeight.w700,
+                          height: 1.1,
                           shadows: [
                             Shadow(
                               color: Color(0x55000000),
@@ -2027,9 +2405,10 @@ class _Glossy3DStatCard extends StatelessWidget {
                         Text(
                           '$count',
                           style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.92),
-                            fontSize: 11.5,
+                            color: Colors.white.withValues(alpha: 0.94),
+                            fontSize: 11,
                             fontWeight: FontWeight.w600,
+                            height: 1.15,
                           ),
                         ),
                     ],
@@ -2047,11 +2426,13 @@ class _Glossy3DStatCard extends StatelessWidget {
 class _3DGridCard extends StatelessWidget {
   final String label;
   final Widget iconWidget;
+  final bool compact;
   final VoidCallback onTap;
 
   const _3DGridCard({
     required this.label,
     required this.iconWidget,
+    this.compact = false,
     required this.onTap,
   });
 
@@ -2059,17 +2440,17 @@ class _3DGridCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(16),
       elevation: 0,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         child: Container(
-          constraints: const BoxConstraints(minHeight: 116),
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+          constraints: BoxConstraints(minHeight: compact ? 88 : 92),
+          padding: EdgeInsets.symmetric(horizontal: 6, vertical: compact ? 7 : 8),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: const Color(0xFFE5EAE7),
               width: 1,
@@ -2077,8 +2458,8 @@ class _3DGridCard extends StatelessWidget {
             boxShadow: const [
               BoxShadow(
                 color: Color(0x16000000),
-                blurRadius: 8,
-                offset: Offset(0, 4),
+                blurRadius: 7,
+                offset: Offset(0, 3),
               ),
             ],
           ),
@@ -2086,18 +2467,23 @@ class _3DGridCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               SizedBox(
-                height: 54,
-                child: Center(child: iconWidget),
+                height: compact ? 38 : 42,
+                child: Center(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: iconWidget,
+                  ),
+                ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 5),
               Text(
                 label,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Color(0xFF1A1D1B),
-                  fontSize: 13.5,
+                style: TextStyle(
+                  color: const Color(0xFF1A1D1B),
+                  fontSize: compact ? 12 : 13,
                   fontWeight: FontWeight.w600,
-                  height: 1.2,
+                  height: 1.15,
                 ),
               ),
             ],
@@ -2116,13 +2502,13 @@ class _3DShoppingCartIcon extends StatelessWidget {
     return Stack(
       alignment: Alignment.center,
       children: [
-        const Icon(Icons.shopping_cart_rounded, size: 46, color: Color(0xFFD93829)),
+        const Icon(Icons.shopping_cart_rounded, size: 42, color: Color(0xFFD93829)),
         Positioned(
-          top: 5,
-          right: 6,
+          top: 4,
+          right: 5,
           child: Container(
-            width: 10,
-            height: 10,
+            width: 9,
+            height: 9,
             decoration: const BoxDecoration(
               color: Color(0xFFFFCA28),
               shape: BoxShape.circle,
@@ -2140,8 +2526,8 @@ class _3DBoxIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 44,
-      height: 44,
+      width: 40,
+      height: 40,
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
@@ -2157,7 +2543,7 @@ class _3DBoxIcon extends StatelessWidget {
           ),
         ],
       ),
-      child: const Icon(Icons.inventory_2_rounded, color: Colors.white, size: 26),
+      child: const Icon(Icons.inventory_2_rounded, color: Colors.white, size: 24),
     );
   }
 }
@@ -2171,13 +2557,13 @@ class _3DFolderIcon extends StatelessWidget {
       alignment: Alignment.center,
       children: [
         Positioned(
-          top: 4,
-          left: 10,
+          top: 3,
+          left: 9,
           child: Transform.rotate(
             angle: -0.2,
             child: Container(
-              width: 16,
-              height: 16,
+              width: 15,
+              height: 15,
               decoration: BoxDecoration(
                 color: const Color(0xFF42A5F5),
                 borderRadius: BorderRadius.circular(3),
@@ -2186,13 +2572,13 @@ class _3DFolderIcon extends StatelessWidget {
           ),
         ),
         Positioned(
-          top: 3,
-          right: 10,
+          top: 2,
+          right: 9,
           child: Transform.rotate(
             angle: 0.2,
             child: Container(
-              width: 16,
-              height: 16,
+              width: 15,
+              height: 15,
               decoration: BoxDecoration(
                 color: const Color(0xFFEC407A),
                 borderRadius: BorderRadius.circular(3),
@@ -2201,8 +2587,8 @@ class _3DFolderIcon extends StatelessWidget {
           ),
         ),
         const Padding(
-          padding: EdgeInsets.only(top: 6),
-          child: Icon(Icons.folder_rounded, size: 44, color: Color(0xFFFBC02D)),
+          padding: EdgeInsets.only(top: 5),
+          child: Icon(Icons.folder_rounded, size: 40, color: Color(0xFFFBC02D)),
         ),
       ],
     );
@@ -2218,12 +2604,12 @@ class _3DDeliveryPinIcon extends StatelessWidget {
       alignment: Alignment.center,
       children: [
         Padding(
-          padding: EdgeInsets.only(top: 10),
-          child: Icon(Icons.mark_email_unread_rounded, size: 38, color: Color(0xFFECEFF1)),
+          padding: EdgeInsets.only(top: 9),
+          child: Icon(Icons.mark_email_unread_rounded, size: 35, color: Color(0xFFECEFF1)),
         ),
         Positioned(
           top: 1,
-          child: Icon(Icons.location_on_rounded, size: 30, color: Color(0xFFE53935)),
+          child: Icon(Icons.location_on_rounded, size: 28, color: Color(0xFFE53935)),
         ),
       ],
     );
@@ -2237,7 +2623,7 @@ class _3DDeliveryTruckIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Icon(
       Icons.local_shipping_rounded,
-      size: 46,
+      size: 40,
       color: Color(0xFFEF6C00),
     );
   }
@@ -2252,18 +2638,18 @@ class _3DChartIcon extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        _bar(18, const Color(0xFF42A5F5)),
-        const SizedBox(width: 4),
-        _bar(28, const Color(0xFFEF5350)),
-        const SizedBox(width: 4),
-        _bar(38, const Color(0xFF43A047)),
+        _bar(15, const Color(0xFF42A5F5)),
+        const SizedBox(width: 3.5),
+        _bar(24, const Color(0xFFEF5350)),
+        const SizedBox(width: 3.5),
+        _bar(33, const Color(0xFF43A047)),
       ],
     );
   }
 
   Widget _bar(double height, Color color) {
     return Container(
-      width: 10,
+      width: 9,
       height: height,
       decoration: BoxDecoration(
         color: color,
@@ -2288,8 +2674,8 @@ class _3DAdminUsersIcon extends StatelessWidget {
     return const Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(Icons.person_rounded, size: 34, color: Color(0xFF42A5F5)),
-        Icon(Icons.person_rounded, size: 34, color: Color(0xFF37474F)),
+        Icon(Icons.person_rounded, size: 30, color: Color(0xFF42A5F5)),
+        Icon(Icons.person_rounded, size: 30, color: Color(0xFF37474F)),
       ],
     );
   }
