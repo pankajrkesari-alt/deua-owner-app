@@ -1792,18 +1792,19 @@ class _OwnerDashboardScreenState extends State with WidgetsBindingObserver {
       width: double.infinity,
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
           colors: [
-            Color(0xFF1B5E20),
+            Color(0xFF1F6E26),
             Color(0xFF144A18),
+            Color(0xFF0C3210),
           ],
         ),
       ),
       child: SafeArea(
         bottom: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 10, 10, 14),
+          padding: const EdgeInsets.fromLTRB(14, 10, 10, 16),
           child: Column(
             children: [
               Row(
@@ -1822,59 +1823,65 @@ class _OwnerDashboardScreenState extends State with WidgetsBindingObserver {
                       ),
                     ),
                   ),
-                  IconButton(
-                    visualDensity: VisualDensity.compact,
-                    onPressed: () {
+                  _HeaderGlassIconButton(
+                    tooltip: 'Refresh',
+                    onTap: () {
                       _resetIdleTimer(forcePersist: true);
                       _loadAllData();
                     },
-                    tooltip: 'Refresh',
-                    icon: _loading
+                    child: _loading
                         ? const SizedBox(
-                            width: 16,
-                            height: 16,
+                            width: 15,
+                            height: 15,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
                               color: Colors.white,
                             ),
                           )
-                        : const Icon(Icons.refresh_rounded, color: Colors.white, size: 19),
+                        : const Icon(Icons.refresh_rounded, color: Colors.white, size: 18),
                   ),
-                  IconButton(
-                    visualDensity: VisualDensity.compact,
-                    onPressed: () async {
+                  const SizedBox(width: 6),
+                  _HeaderGlassIconButton(
+                    tooltip: 'Logout',
+                    onTap: () async {
                       _idleTimer?.cancel();
                       _clockTimer?.cancel();
                       await _w.onLogout();
                     },
-                    tooltip: 'Logout',
-                    icon: const Icon(Icons.logout_rounded, color: Colors.white, size: 19),
+                    child: const Icon(Icons.logout_rounded, color: Colors.white, size: 18),
                   ),
                 ],
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 6),
               ClipRRect(
                 borderRadius: BorderRadius.circular(20),
                 child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.14),
+                      color: Colors.white.withValues(alpha: 0.16),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.28),
-                        width: 0.8,
+                        color: Colors.white.withValues(alpha: 0.35),
+                        width: 1,
                       ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.14),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
                     child: Text(
                       '$badgeText  •  $dateTimeStr',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        color: Color(0xFFE8F5E9),
+                        color: Color(0xFFF1FBF4),
                         fontSize: 11.5,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -1897,8 +1904,8 @@ class _OwnerDashboardScreenState extends State with WidgetsBindingObserver {
                 label: 'Total Orders',
                 count: _countOrdersByFilter('All'),
                 outerColor: const Color(0xFF1F6E33),
-                innerTopColor: const Color(0xFF358A49),
-                innerBottomColor: const Color(0xFF1B632D),
+                innerTopColor: const Color(0xFF39944F),
+                innerBottomColor: const Color(0xFF175B28),
                 onTap: () => _openOrdersPage(initialFilter: 'All'),
               ),
             ),
@@ -1908,8 +1915,8 @@ class _OwnerDashboardScreenState extends State with WidgetsBindingObserver {
                 label: 'Pending',
                 count: _countOrdersByFilter('Pending'),
                 outerColor: const Color(0xFFD68024),
-                innerTopColor: const Color(0xFFE5973A),
-                innerBottomColor: const Color(0xFFC87218),
+                innerTopColor: const Color(0xFFECA042),
+                innerBottomColor: const Color(0xFFBA6812),
                 onTap: () => _openOrdersPage(initialFilter: 'Pending'),
               ),
             ),
@@ -1923,8 +1930,8 @@ class _OwnerDashboardScreenState extends State with WidgetsBindingObserver {
                 label: 'Out for Delivery',
                 count: _countOrdersByFilter('Out for Delivery'),
                 outerColor: const Color(0xFF2873BC),
-                innerTopColor: const Color(0xFF3E8AD4),
-                innerBottomColor: const Color(0xFF2064A8),
+                innerTopColor: const Color(0xFF4492DE),
+                innerBottomColor: const Color(0xFF1C5B99),
                 onTap: () => _openOrdersPage(initialFilter: 'Out for Delivery'),
               ),
             ),
@@ -1934,8 +1941,8 @@ class _OwnerDashboardScreenState extends State with WidgetsBindingObserver {
                 label: 'Delivered',
                 count: _countOrdersByFilter('Delivered'),
                 outerColor: const Color(0xFF75429E),
-                innerTopColor: const Color(0xFF8B56B5),
-                innerBottomColor: const Color(0xFF66368B),
+                innerTopColor: const Color(0xFF935CC0),
+                innerBottomColor: const Color(0xFF5D2F82),
                 onTap: () => _openOrdersPage(initialFilter: 'Delivered'),
               ),
             ),
@@ -2030,89 +2037,107 @@ class _OwnerDashboardScreenState extends State with WidgetsBindingObserver {
   }
 
   Widget _buildDeliveryBoyLoginLinkCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(10, 9, 10, 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFAFAFA),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE6E9E6), width: 1),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x14000000),
-            blurRadius: 6,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          const Text(
-            'Delivery Boy Login Link',
-            style: TextStyle(
-              color: Color(0xFF1E2220),
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(18),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(11, 10, 11, 11),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.72),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.92),
+              width: 1.3,
             ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF144A18).withValues(alpha: 0.08),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
-          Row(
+          child: Column(
             children: [
-              Expanded(
-                flex: 11,
-                child: Material(
-                  color: const Color(0xFF194D1E),
-                  borderRadius: BorderRadius.circular(8),
-                  child: InkWell(
-                    onTap: _openDeliveryBoyLoginLink,
-                    borderRadius: BorderRadius.circular(8),
-                    child: Container(
-                      height: 62,
-                      alignment: Alignment.center,
-                      padding: const EdgeInsets.symmetric(horizontal: 6),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Color(0x28000000),
-                            blurRadius: 4,
-                            offset: Offset(0, 2),
+              const Text(
+                'Delivery Boy Login Link',
+                style: TextStyle(
+                  color: Color(0xFF1A2A20),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    flex: 11,
+                    child: Material(
+                      color: Colors.transparent,
+                      borderRadius: BorderRadius.circular(10),
+                      child: InkWell(
+                        onTap: _openDeliveryBoyLoginLink,
+                        borderRadius: BorderRadius.circular(10),
+                        child: Container(
+                          height: 62,
+                          alignment: Alignment.center,
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(10),
+                            gradient: const LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [Color(0xFF226829), Color(0xFF113F16)],
+                            ),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.35),
+                              width: 1,
+                            ),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x330B3310),
+                                blurRadius: 6,
+                                offset: Offset(0, 3),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                      child: const Text(
-                        'Login/Open Login',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w600,
+                          child: const Text(
+                            'Login/Open Login',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                flex: 10,
-                child: Column(
-                  children: [
-                    _SoftGreenActionButton(
-                      label: 'Copy Link',
-                      onTap: _copyDeliveryBoyLoginLink,
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 10,
+                    child: Column(
+                      children: [
+                        _SoftGreenActionButton(
+                          label: 'Copy Link',
+                          onTap: _copyDeliveryBoyLoginLink,
+                        ),
+                        const SizedBox(height: 6),
+                        _SoftGreenActionButton(
+                          label: 'WhatsApp',
+                          onTap: _shareDeliveryBoyLoginWhatsApp,
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 6),
-                    _SoftGreenActionButton(
-                      label: 'WhatsApp',
-                      onTap: _shareDeliveryBoyLoginWhatsApp,
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -2126,7 +2151,7 @@ class _OwnerDashboardScreenState extends State with WidgetsBindingObserver {
       onPointerDown: (_) => _resetIdleTimer(),
       onPointerMove: (_) => _resetIdleTimer(),
       child: Scaffold(
-        backgroundColor: const Color(0xFF1B5E20),
+        backgroundColor: const Color(0xFF144A18),
         body: Column(
           children: [
             _buildTopGreenHeader(badgeText, dateTimeStr),
@@ -2134,11 +2159,18 @@ class _OwnerDashboardScreenState extends State with WidgetsBindingObserver {
               child: Container(
                 width: double.infinity,
                 decoration: const BoxDecoration(
-                  color: Color(0xFFF3F5F4),
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(0xFFE9F4EC),
+                      Color(0xFFD5E7DA),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
                 ),
                 child: ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
                   child: RefreshIndicator(
                     onRefresh: () {
                       _resetIdleTimer(forcePersist: true);
@@ -2147,7 +2179,7 @@ class _OwnerDashboardScreenState extends State with WidgetsBindingObserver {
                     color: const Color(0xFF1B7A2B),
                     child: SingleChildScrollView(
                       physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
+                      padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
                       child: Column(
                         children: [
                           _buildFourBeveledStatButtons(),
@@ -2163,6 +2195,43 @@ class _OwnerDashboardScreenState extends State with WidgetsBindingObserver {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HeaderGlassIconButton extends StatelessWidget {
+  final String tooltip;
+  final VoidCallback onTap;
+  final Widget child;
+
+  const _HeaderGlassIconButton({
+    required this.tooltip,
+    required this.onTap,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          width: 32,
+          height: 32,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.16),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.32),
+              width: 0.9,
+            ),
+          ),
+          child: child,
         ),
       ),
     );
@@ -2404,25 +2473,29 @@ class _SoftGreenActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: const Color(0xFFBCE3C2),
-      borderRadius: BorderRadius.circular(7),
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(9),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(7),
+        borderRadius: BorderRadius.circular(9),
         child: Container(
           height: 28,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(7),
+            borderRadius: BorderRadius.circular(9),
             gradient: const LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [Color(0xFFC8E9CD), Color(0xFFAAD8B1)],
+              colors: [Color(0xFFD6F2DA), Color(0xFFA9D8B0)],
+            ),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.85),
+              width: 1,
             ),
             boxShadow: const [
               BoxShadow(
                 color: Color(0x1C000000),
-                blurRadius: 3,
+                blurRadius: 4,
                 offset: Offset(0, 1.5),
               ),
             ],
@@ -2432,7 +2505,7 @@ class _SoftGreenActionButton extends StatelessWidget {
             style: const TextStyle(
               color: Color(0xFF143D19),
               fontSize: 11.5,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ),
@@ -2462,58 +2535,58 @@ class _Beveled3DStatButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.transparent,
-      borderRadius: BorderRadius.circular(13),
+      borderRadius: BorderRadius.circular(15),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(13),
+        borderRadius: BorderRadius.circular(15),
         child: Container(
-          height: 52,
-          padding: const EdgeInsets.all(4),
+          height: 54,
+          padding: const EdgeInsets.all(3.5),
           decoration: BoxDecoration(
             color: outerColor,
-            borderRadius: BorderRadius.circular(13),
+            borderRadius: BorderRadius.circular(15),
             border: Border.all(
-              color: Colors.white.withValues(alpha: 0.35),
-              width: 1,
+              color: Colors.white.withValues(alpha: 0.52),
+              width: 1.2,
             ),
             boxShadow: [
               BoxShadow(
-                color: outerColor.withValues(alpha: 0.45),
-                blurRadius: 6,
-                offset: const Offset(0, 3),
+                color: outerColor.withValues(alpha: 0.42),
+                blurRadius: 9,
+                offset: const Offset(0, 4),
               ),
             ],
           ),
           child: Container(
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(9),
+              borderRadius: BorderRadius.circular(11),
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [innerTopColor, innerBottomColor],
               ),
               border: Border.all(
-                color: Colors.white.withValues(alpha: 0.25),
-                width: 0.8,
+                color: Colors.white.withValues(alpha: 0.35),
+                width: 0.9,
               ),
             ),
             child: Stack(
               children: [
                 Positioned(
                   top: 0,
-                  left: 0,
-                  right: 0,
-                  height: 15,
+                  left: 2,
+                  right: 2,
+                  height: 18,
                   child: IgnorePointer(
                     child: Container(
                       decoration: BoxDecoration(
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(9)),
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(11)),
                         gradient: LinearGradient(
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
                           colors: [
-                            Colors.white.withValues(alpha: 0.36),
-                            Colors.white.withValues(alpha: 0.02),
+                            Colors.white.withValues(alpha: 0.44),
+                            Colors.white.withValues(alpha: 0.03),
                           ],
                         ),
                       ),
@@ -2535,23 +2608,23 @@ class _Beveled3DStatButton extends StatelessWidget {
                           height: 1.1,
                           shadows: [
                             Shadow(
-                              color: Color(0x4D000000),
+                              color: Color(0x55000000),
                               blurRadius: 2,
                               offset: Offset(0, 1),
                             ),
                           ],
                         ),
                       ),
-                      if (count > 0)
-                        Text(
-                          '$count',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.95),
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w600,
-                            height: 1.15,
-                          ),
+                      const SizedBox(height: 1),
+                      Text(
+                        '$count',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.96),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          height: 1.15,
                         ),
+                      ),
                     ],
                   ),
                 ),
@@ -2584,110 +2657,119 @@ class _Raised3DIconTile extends StatelessWidget {
     final double capsuleW = compact ? 58 : 74;
     final double capsuleH = compact ? 38 : 44;
 
-    return Material(
-      color: const Color(0xFFFAFAFA),
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          constraints: BoxConstraints(minHeight: compact ? 84 : 88),
-          padding: EdgeInsets.symmetric(horizontal: 6, vertical: compact ? 6 : 7),
-          decoration: BoxDecoration(
-            color: const Color(0xFFFAFAFA),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFE5EAE7), width: 1),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x18000000),
-                blurRadius: 6,
-                offset: Offset(0, 3),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: capsuleW,
-                height: capsuleH,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(capsuleH / 2),
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Colors.white.withValues(alpha: 0.92),
-                      glassTint.withValues(alpha: 0.72),
-                      const Color(0xFFDCE7E0).withValues(alpha: 0.65),
-                    ],
-                  ),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.95),
-                    width: 1.3,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF1B5E20).withValues(alpha: 0.12),
-                      blurRadius: 6,
-                      offset: const Offset(0, 3),
-                    ),
-                    const BoxShadow(
-                      color: Colors.white,
-                      blurRadius: 2,
-                      offset: Offset(-1, -1),
-                    ),
-                  ],
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Material(
+          color: Colors.white.withValues(alpha: 0.68),
+          borderRadius: BorderRadius.circular(16),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              constraints: BoxConstraints(minHeight: compact ? 84 : 88),
+              padding: EdgeInsets.symmetric(horizontal: 6, vertical: compact ? 6 : 7),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.68),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.92),
+                  width: 1.3,
                 ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(capsuleH / 2),
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      Positioned(
-                        top: 2,
-                        left: 6,
-                        right: 6,
-                        height: capsuleH * 0.42,
-                        child: IgnorePointer(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(capsuleH / 2),
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                                  Colors.white.withValues(alpha: 0.75),
-                                  Colors.white.withValues(alpha: 0.05),
-                                ],
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF144A18).withValues(alpha: 0.08),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: capsuleW,
+                    height: capsuleH,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(capsuleH / 2),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Colors.white.withValues(alpha: 0.95),
+                          glassTint.withValues(alpha: 0.78),
+                          const Color(0xFFDCE7E0).withValues(alpha: 0.68),
+                        ],
+                      ),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.98),
+                        width: 1.4,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF1B5E20).withValues(alpha: 0.14),
+                          blurRadius: 7,
+                          offset: const Offset(0, 3),
+                        ),
+                        const BoxShadow(
+                          color: Colors.white,
+                          blurRadius: 3,
+                          offset: Offset(-1, -1),
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(capsuleH / 2),
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Positioned(
+                            top: 2,
+                            left: 6,
+                            right: 6,
+                            height: capsuleH * 0.42,
+                            child: IgnorePointer(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(capsuleH / 2),
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: [
+                                      Colors.white.withValues(alpha: 0.8),
+                                      Colors.white.withValues(alpha: 0.05),
+                                    ],
+                                  ),
+                                ),
                               ),
                             ),
                           ),
-                        ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: iconWidget,
+                            ),
+                          ),
+                        ],
                       ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: iconWidget,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 5),
+                  Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: const Color(0xFF1A261F),
+                      fontSize: compact ? 11.5 : 12.5,
+                      fontWeight: FontWeight.w600,
+                      height: 1.15,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 5),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: const Color(0xFF1C201E),
-                  fontSize: compact ? 11.5 : 12.5,
-                  fontWeight: FontWeight.w600,
-                  height: 1.15,
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
