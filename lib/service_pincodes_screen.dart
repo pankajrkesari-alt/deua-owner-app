@@ -6,17 +6,18 @@ class ServicePincodesScreen extends StatefulWidget {
   const ServicePincodesScreen({super.key, required this.actorRole});
 
   @override
-  State<ServicePincodesScreen> createState() => _ServicePincodesScreenState();
+  State createState() => _ServicePincodesScreenState();
 }
 
-class _ServicePincodesScreenState extends State<ServicePincodesScreen> {
+class _ServicePincodesScreenState extends State {
   final _supabase = Supabase.instance.client;
   bool _loading = true;
-  List> _pincodes = [];
+  List _pincodes = [];
 
+  ServicePincodesScreen get _w => widget as ServicePincodesScreen;
   bool get _canManage =>
-      widget.actorRole.toLowerCase() == 'owner' ||
-      widget.actorRole.toLowerCase() == 'admin';
+      _w.actorRole.toLowerCase() == 'owner' ||
+      _w.actorRole.toLowerCase() == 'admin';
 
   @override
   void initState() {
@@ -24,7 +25,7 @@ class _ServicePincodesScreenState extends State<ServicePincodesScreen> {
     _loadPincodes();
   }
 
-  Future<void> _loadPincodes() async {
+  Future _loadPincodes() async {
     setState(() => _loading = true);
     try {
       final res = await _supabase
@@ -34,9 +35,7 @@ class _ServicePincodesScreenState extends State<ServicePincodesScreen> {
 
       if (!mounted) return;
       setState(() {
-        _pincodes = List>.from(
-          (res as List).map((e) => Map<String, dynamic>.from(e as Map)),
-        );
+        _pincodes = List.from(res as List);
         _loading = false;
       });
     } catch (e) {
@@ -46,7 +45,7 @@ class _ServicePincodesScreenState extends State<ServicePincodesScreen> {
     }
   }
 
-  Future<void> _openAddPinDialog() async {
+  Future _openAddPinDialog() async {
     if (!_canManage) {
       _showSnack('Sirf Owner ya Admin pin code add kar sakte hain.',
           isError: true);
@@ -139,7 +138,7 @@ class _ServicePincodesScreenState extends State<ServicePincodesScreen> {
     );
   }
 
-  Future<void> _togglePin(Map<String, dynamic> row, bool value) async {
+  Future _togglePin(Map row, bool value) async {
     if (!_canManage) {
       _showSnack('Sirf Owner ya Admin status badal sakte hain.', isError: true);
       return;
@@ -151,13 +150,10 @@ class _ServicePincodesScreenState extends State<ServicePincodesScreen> {
     try {
       await _supabase
           .from('deua_service_pincodes')
-          .update({'is_active': value})
-          .eq('id', id);
+          .update({'is_active': value}).eq('id', id);
 
       if (!mounted) return;
-      setState(() {
-        row['is_active'] = value;
-      });
+      await _loadPincodes();
       _showSnack(
         value
             ? 'Pin code $pin Delivery के लिए Active हो गया।'
@@ -168,7 +164,7 @@ class _ServicePincodesScreenState extends State<ServicePincodesScreen> {
     }
   }
 
-  Future<void> _deletePin(Map<String, dynamic> row) async {
+  Future _deletePin(Map row) async {
     if (!_canManage) return;
 
     final id = row['id'];
@@ -228,7 +224,7 @@ class _ServicePincodesScreenState extends State<ServicePincodesScreen> {
                     padding: const EdgeInsets.fromLTRB(12, 12, 12, 84),
                     itemCount: _pincodes.length,
                     itemBuilder: (_, i) {
-                      final row = _pincodes[i];
+                      final row = Map.from(_pincodes[i] as Map);
                       final pin = row['pincode']?.toString() ?? '';
                       final area = (row['area_name'] ?? '').toString().trim();
                       final active = row['is_active'] == true;
