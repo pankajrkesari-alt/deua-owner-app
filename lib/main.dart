@@ -1,8 +1,9 @@
+import 'dart:ui';
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'delivery_boys_screen.dart';
 import 'service_pincodes_screen.dart';
-import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 const String kOwnerRecoveryKey = 'Deua199800';
 
@@ -25,7 +26,7 @@ class DeuaOwnerApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
-        scaffoldBackgroundColor: const Color(0xFFF4F6F8),
+        scaffoldBackgroundColor: const Color(0xFFF3F6F4),
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF1B7A2B),
           primary: const Color(0xFF1B7A2B),
@@ -424,7 +425,6 @@ class OwnerDashboardScreen extends StatefulWidget {
 
 class _OwnerDashboardScreenState extends State {
   final _supabase = Supabase.instance.client;
-  int _tabIndex = 0;
   bool _loading = true;
 
   List _orders = [];
@@ -447,32 +447,6 @@ class _OwnerDashboardScreenState extends State {
   bool get _canProducts => _isOwner || _w.currentUser['can_products'] == true;
   bool get _canCategories => _isOwner || _w.currentUser['can_categories'] == true;
   bool get _canHisab => _isOwner || _w.currentUser['can_hisab'] == true;
-
-  List _allowedTabs() {
-    final List tabs = [];
-    if (_canOrders) {
-      tabs.add({'key': 'orders', 'title': 'लाइव ऑर्डर • Live Orders', 'label': 'Orders', 'icon': Icons.receipt_long});
-    }
-    if (_canProducts) {
-      tabs.add({'key': 'products', 'title': 'सामान व रेट • Products', 'label': 'Products', 'icon': Icons.inventory_2});
-    }
-    if (_canCategories) {
-      tabs.add({'key': 'categories', 'title': 'सभी श्रेणियां • Categories', 'label': 'Categories', 'icon': Icons.category});
-    }
-    if (_canDeliveryBoys) {
-      tabs.add({'key': 'delivery_boys', 'title': 'डिलीवरी बॉय • Delivery Boys', 'label': 'Delivery', 'icon': Icons.delivery_dining});
-    }
-    if (_canPincodes) {
-      tabs.add({'key': 'pincodes', 'title': 'डिलीवरी पिन कोड • Pin Codes', 'label': 'Pin Codes', 'icon': Icons.pin_drop});
-    }
-    if (_canHisab) {
-      tabs.add({'key': 'hisab', 'title': 'दुकान हिसाब • Shop Summary', 'label': 'Hisab', 'icon': Icons.bar_chart});
-    }
-    if (_isOwner) {
-      tabs.add({'key': 'staff', 'title': 'एडमिन व एक्सेस • Admins', 'label': 'Admins', 'icon': Icons.admin_panel_settings});
-    }
-    return tabs;
-  }
 
   @override
   void initState() {
@@ -534,11 +508,7 @@ class _OwnerDashboardScreenState extends State {
     }
 
     if (!mounted) return;
-    final maxIdx = _allowedTabs().isEmpty ? 0 : _allowedTabs().length - 1;
-    setState(() {
-      if (_tabIndex > maxIdx) _tabIndex = 0;
-      _loading = false;
-    });
+    setState(() => _loading = false);
     if (err != null) _showMsg(err, isError: true);
   }
 
@@ -548,6 +518,135 @@ class _OwnerDashboardScreenState extends State {
       SnackBar(
         content: Text(text, maxLines: 3, overflow: TextOverflow.ellipsis),
         backgroundColor: isError ? Colors.red.shade700 : const Color(0xFF1B7A2B),
+      ),
+    );
+  }
+
+  String _formattedTodayDate() {
+    final now = DateTime.now();
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    final day = now.day.toString().padLeft(2, '0');
+    final month = months[now.month - 1];
+    return '$day $month ${now.year}';
+  }
+
+  String _ownerGlassBadgeText() {
+    final rawName = (_w.currentUser['name'] ?? '').toString().trim();
+    final displayName = rawName.isNotEmpty ? rawName : 'Pankaj R Kesari';
+    final roleTag = _isOwner ? 'OWNER' : 'ADMIN';
+    return '$roleTag • $displayName';
+  }
+
+  int _countOrdersByFilter(String filter) {
+    if (filter == 'All') return _orders.length;
+    int c = 0;
+    for (final item in _orders) {
+      final st = (Map.from(item as Map)['status'] ?? 'Pending').toString();
+      if (st == filter) c++;
+    }
+    return c;
+  }
+
+  void _openSubPage({
+    required String title,
+    required Widget body,
+    bool noAccess = false,
+  }) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
+          appBar: AppBar(
+            backgroundColor: const Color(0xFF1B7A2B),
+            foregroundColor: Colors.white,
+            title: Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            actions: [
+              IconButton(icon: const Icon(Icons.refresh), onPressed: _loadAllData),
+            ],
+          ),
+          body: noAccess
+              ? const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Text('इस सेक्शन का Access अभी नहीं मिला है। Owner से संपर्क करें।', textAlign: TextAlign.center),
+                  ),
+                )
+              : body,
+        ),
+      ),
+    );
+  }
+
+  void _openOrdersPage({String initialFilter = 'All'}) {
+    setState(() => _orderFilter = initialFilter);
+    _openSubPage(
+      title: 'लाइव ऑर्डर • Live Orders',
+      noAccess: !_canOrders,
+      body: StatefulBuilder(
+        builder: (ctx, setPage) => _ordersTab(onChanged: () => setPage(() {})),
+      ),
+    );
+  }
+
+  void _openProductsPage() {
+    _openSubPage(
+      title: 'सामान व रेट • Products',
+      noAccess: !_canProducts,
+      body: StatefulBuilder(
+        builder: (ctx, setPage) => _productsTab(onChanged: () => setPage(() {})),
+      ),
+    );
+  }
+
+  void _openCategoriesPage() {
+    _openSubPage(
+      title: 'सभी श्रेणियां • Categories',
+      noAccess: !_canCategories,
+      body: StatefulBuilder(
+        builder: (ctx, setPage) => _categoriesTab(onChanged: () => setPage(() {})),
+      ),
+    );
+  }
+
+  void _openDeliveryPinPage() {
+    if (!_canPincodes) {
+      _showMsg('Delivery PIN का Access नहीं मिला है।', isError: true);
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => ServicePincodesScreen(actorRole: _role)),
+    );
+  }
+
+  void _openDeliveryBoysPage() {
+    if (!_canDeliveryBoys) {
+      _showMsg('Delivery Boys का Access नहीं मिला है।', isError: true);
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => DeliveryBoysScreen(actorRole: _role)),
+    );
+  }
+
+  void _openReportsPage() {
+    _openSubPage(
+      title: 'हिसाब व रिपोर्ट • Reports',
+      noAccess: !_canHisab,
+      body: _summaryTab(),
+    );
+  }
+
+  void _openAdminManagementPage() {
+    if (!_isOwner) {
+      _showMsg('Admin Management सिर्फ Owner के लिए है।', isError: true);
+      return;
+    }
+    _openSubPage(
+      title: 'Admin Management',
+      body: StatefulBuilder(
+        builder: (ctx, setPage) => _staffTab(onChanged: () => setPage(() {})),
       ),
     );
   }
@@ -594,7 +693,7 @@ class _OwnerDashboardScreenState extends State {
     return 'Deua@$code';
   }
 
-  void _openAdminForm({Map? existing}) {
+  void _openAdminForm({Map? existing, VoidCallback? onSaved}) {
     final isEdit = existing != null;
     final nameCtrl = TextEditingController(text: existing?['name']?.toString() ?? '');
     final emailCtrl = TextEditingController(text: existing?['email']?.toString() ?? '');
@@ -733,6 +832,7 @@ class _OwnerDashboardScreenState extends State {
                               if (!mounted) return;
                               Navigator.pop(ctx);
                               await _loadAllData();
+                              onSaved?.call();
                               _showMsg('Admin ID: $em | Pass: $pw save ho gaya!');
                             } catch (e) {
                               setModal(() => saving = false);
@@ -750,10 +850,13 @@ class _OwnerDashboardScreenState extends State {
     );
   }
 
-  Widget _staffTab() {
+  Widget _staffTab({VoidCallback? onChanged}) {
     return Scaffold(
       body: RefreshIndicator(
-        onRefresh: _loadAllData,
+        onRefresh: () async {
+          await _loadAllData();
+          onChanged?.call();
+        },
         child: ListView.builder(
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 84),
           itemCount: _staffList.length,
@@ -804,13 +907,14 @@ class _OwnerDashboardScreenState extends State {
                         children: [
                           IconButton(
                             icon: const Icon(Icons.edit, color: Color(0xFF1B7A2B)),
-                            onPressed: () => _openAdminForm(existing: st),
+                            onPressed: () => _openAdminForm(existing: st, onSaved: onChanged),
                           ),
                           IconButton(
                             icon: const Icon(Icons.delete_outline, color: Colors.red),
                             onPressed: () async {
                               await _supabase.from('deua_staff_accounts').delete().eq('id', st['id']);
                               await _loadAllData();
+                              onChanged?.call();
                               _showMsg('Admin account hata diya gaya.');
                             },
                           ),
@@ -824,34 +928,36 @@ class _OwnerDashboardScreenState extends State {
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: const Color(0xFF1B7A2B),
         foregroundColor: Colors.white,
-        onPressed: () => _openAdminForm(),
+        onPressed: () => _openAdminForm(onSaved: onChanged),
         icon: const Icon(Icons.person_add),
         label: const Text('नया Admin + ID/Pass', style: TextStyle(fontWeight: FontWeight.bold)),
       ),
     );
   }
 
-  Future _updateOrderStatus(dynamic orderId, String newStatus) async {
+  Future _updateOrderStatus(dynamic orderId, String newStatus, {VoidCallback? onChanged}) async {
     try {
       await _supabase.from('deua_orders').update({'status': newStatus}).eq('id', orderId);
       await _loadAllData();
+      onChanged?.call();
       _showMsg('Order status "$newStatus" kar diya gaya.');
     } catch (e) {
       _showMsg('Status error: $e', isError: true);
     }
   }
 
-  Future _toggleProductStock(String prodId, bool newValue) async {
+  Future _toggleProductStock(String prodId, bool newValue, {VoidCallback? onChanged}) async {
     try {
       await _supabase.from('deua_products').update({'in_stock': newValue}).eq('id', prodId);
       await _loadAllData();
+      onChanged?.call();
       _showMsg(newValue ? 'Saman In Stock kar diya gaya.' : 'Saman Out of Stock kar diya gaya.');
     } catch (e) {
       _showMsg('Stock error: $e', isError: true);
     }
   }
 
-  void _openProductForm({Map? existing}) {
+  void _openProductForm({Map? existing, VoidCallback? onSaved}) {
     final isEdit = existing != null;
     final nameCtrl = TextEditingController(text: existing?['name']?.toString() ?? '');
     final imgCtrl = TextEditingController(text: existing?['image_url']?.toString() ?? '');
@@ -904,6 +1010,7 @@ class _OwnerDashboardScreenState extends State {
                           if (!mounted) return;
                           Navigator.pop(ctx);
                           await _loadAllData();
+                          onSaved?.call();
                           _showMsg('Saman delete kar diya gaya.');
                         },
                       ),
@@ -1021,6 +1128,7 @@ class _OwnerDashboardScreenState extends State {
                               if (!mounted) return;
                               Navigator.pop(ctx);
                               await _loadAllData();
+                              onSaved?.call();
                               _showMsg(isEdit ? 'Saman update ho gaya!' : 'Naya saman jud gaya!');
                             } catch (e) {
                               setModal(() => saving = false);
@@ -1038,7 +1146,7 @@ class _OwnerDashboardScreenState extends State {
     );
   }
 
-  void _openCategoryForm({Map? existing}) {
+  void _openCategoryForm({Map? existing, VoidCallback? onSaved}) {
     final isEdit = existing != null;
     final hindiCtrl = TextEditingController(text: existing?['hindi_name']?.toString() ?? '');
     final engCtrl = TextEditingController(text: existing?['name']?.toString() ?? '');
@@ -1117,6 +1225,7 @@ class _OwnerDashboardScreenState extends State {
                               if (!mounted) return;
                               Navigator.pop(ctx);
                               await _loadAllData();
+                              onSaved?.call();
                               _showMsg(isEdit ? 'Category update ho gayi!' : 'Nayi category jud gayi!');
                             } catch (e) {
                               setModal(() => saving = false);
@@ -1149,7 +1258,7 @@ class _OwnerDashboardScreenState extends State {
     }
   }
 
-  Widget _ordersTab() {
+  Widget _ordersTab({VoidCallback? onChanged}) {
     final List filtered = [];
     for (final item in _orders) {
       final o = Map.from(item as Map);
@@ -1174,7 +1283,10 @@ class _OwnerDashboardScreenState extends State {
                   selected: sel,
                   selectedColor: const Color(0xFF1B7A2B),
                   labelStyle: TextStyle(color: sel ? Colors.white : Colors.black87, fontWeight: FontWeight.bold, fontSize: 12),
-                  onSelected: (_) => setState(() => _orderFilter = st),
+                  onSelected: (_) {
+                    setState(() => _orderFilter = st);
+                    onChanged?.call();
+                  },
                 ),
               );
             }).toList(),
@@ -1182,7 +1294,10 @@ class _OwnerDashboardScreenState extends State {
         ),
         Expanded(
           child: RefreshIndicator(
-            onRefresh: _loadAllData,
+            onRefresh: () async {
+              await _loadAllData();
+              onChanged?.call();
+            },
             child: filtered.isEmpty
                 ? ListView(children: const [SizedBox(height: 120), Center(child: Text('अभी कोई ऑर्डर नहीं है • No orders found'))])
                 : ListView.builder(
@@ -1240,7 +1355,7 @@ class _OwnerDashboardScreenState extends State {
                                 children: [
                                   Text('कुल: ₹${ord['total_amount']} (${ord['payment_method'] ?? 'COD'})', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15, color: Color(0xFF1B7A2B))),
                                   PopupMenuButton(
-                                    onSelected: (val) => _updateOrderStatus(ord['id'], val.toString()),
+                                    onSelected: (val) => _updateOrderStatus(ord['id'], val.toString(), onChanged: onChanged),
                                     itemBuilder: (_) => const [
                                       PopupMenuItem(value: 'Pending', child: Text('Pending')),
                                       PopupMenuItem(value: 'Out for Delivery', child: Text('Out for Delivery')),
@@ -1273,7 +1388,7 @@ class _OwnerDashboardScreenState extends State {
     );
   }
 
-  Widget _productsTab() {
+  Widget _productsTab({VoidCallback? onChanged}) {
     final List filtered = [];
     for (final item in _products) {
       final p = Map.from(item as Map);
@@ -1289,7 +1404,10 @@ class _OwnerDashboardScreenState extends State {
             padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
             child: TextField(
               controller: _searchCtrl,
-              onChanged: (v) => setState(() => _productSearch = v),
+              onChanged: (v) {
+                setState(() => _productSearch = v);
+                onChanged?.call();
+              },
               decoration: InputDecoration(
                 hintText: 'सामान खोजें • Search Product...',
                 prefixIcon: const Icon(Icons.search, color: Color(0xFF1B7A2B)),
@@ -1313,7 +1431,10 @@ class _OwnerDashboardScreenState extends State {
                     selected: _selectedProductCat == 'all',
                     selectedColor: const Color(0xFF1B7A2B),
                     labelStyle: TextStyle(color: _selectedProductCat == 'all' ? Colors.white : Colors.black87, fontWeight: FontWeight.bold, fontSize: 11.5),
-                    onSelected: (_) => setState(() => _selectedProductCat = 'all'),
+                    onSelected: (_) {
+                      setState(() => _selectedProductCat = 'all');
+                      onChanged?.call();
+                    },
                   ),
                 ),
                 ..._categories.map((item) {
@@ -1328,7 +1449,10 @@ class _OwnerDashboardScreenState extends State {
                       selected: sel,
                       selectedColor: const Color(0xFF1B7A2B),
                       labelStyle: TextStyle(color: sel ? Colors.white : Colors.black87, fontWeight: FontWeight.bold, fontSize: 11.5),
-                      onSelected: (_) => setState(() => _selectedProductCat = id),
+                      onSelected: (_) {
+                        setState(() => _selectedProductCat = id);
+                        onChanged?.call();
+                      },
                     ),
                   );
                 }),
@@ -1337,7 +1461,10 @@ class _OwnerDashboardScreenState extends State {
           ),
           Expanded(
             child: RefreshIndicator(
-              onRefresh: _loadAllData,
+              onRefresh: () async {
+                await _loadAllData();
+                onChanged?.call();
+              },
               child: ListView.builder(
                 padding: const EdgeInsets.fromLTRB(12, 4, 12, 80),
                 itemCount: filtered.length,
@@ -1367,8 +1494,15 @@ class _OwnerDashboardScreenState extends State {
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Switch(value: inStock, activeColor: const Color(0xFF1B7A2B), onChanged: (val) => _toggleProductStock(prod['id'].toString(), val)),
-                          IconButton(icon: const Icon(Icons.edit, color: Colors.black87, size: 20), onPressed: () => _openProductForm(existing: prod)),
+                          Switch(
+                            value: inStock,
+                            activeColor: const Color(0xFF1B7A2B),
+                            onChanged: (val) => _toggleProductStock(prod['id'].toString(), val, onChanged: onChanged),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.edit, color: Colors.black87, size: 20),
+                            onPressed: () => _openProductForm(existing: prod, onSaved: onChanged),
+                          ),
                         ],
                       ),
                     ),
@@ -1382,17 +1516,20 @@ class _OwnerDashboardScreenState extends State {
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: const Color(0xFF1B7A2B),
         foregroundColor: Colors.white,
-        onPressed: () => _openProductForm(),
+        onPressed: () => _openProductForm(onSaved: onChanged),
         icon: const Icon(Icons.add),
         label: const Text('नया सामान • Add Product', style: TextStyle(fontWeight: FontWeight.bold)),
       ),
     );
   }
 
-  Widget _categoriesTab() {
+  Widget _categoriesTab({VoidCallback? onChanged}) {
     return Scaffold(
       body: RefreshIndicator(
-        onRefresh: _loadAllData,
+        onRefresh: () async {
+          await _loadAllData();
+          onChanged?.call();
+        },
         child: ListView.builder(
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 80),
           itemCount: _categories.length,
@@ -1411,7 +1548,10 @@ class _OwnerDashboardScreenState extends State {
                 leading: ClipRRect(borderRadius: BorderRadius.circular(8), child: _netImg(cat['image_url']?.toString(), width: 52, height: 52)),
                 title: Text('${cat['hindi_name'] ?? ''} (${cat['name'] ?? ''})', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                 subtitle: Text('कुल सामान: $count • Order: ${cat['sort_order'] ?? i + 1}'),
-                trailing: IconButton(icon: const Icon(Icons.edit, color: Color(0xFF1B7A2B)), onPressed: () => _openCategoryForm(existing: cat)),
+                trailing: IconButton(
+                  icon: const Icon(Icons.edit, color: Color(0xFF1B7A2B)),
+                  onPressed: () => _openCategoryForm(existing: cat, onSaved: onChanged),
+                ),
               ),
             );
           },
@@ -1420,7 +1560,7 @@ class _OwnerDashboardScreenState extends State {
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: const Color(0xFF1B7A2B),
         foregroundColor: Colors.white,
-        onPressed: () => _openCategoryForm(),
+        onPressed: () => _openCategoryForm(onSaved: onChanged),
         icon: const Icon(Icons.add),
         label: const Text('नई श्रेणी • Add Category', style: TextStyle(fontWeight: FontWeight.bold)),
       ),
@@ -1478,80 +1618,679 @@ class _OwnerDashboardScreenState extends State {
     );
   }
 
-  Widget _pageByKey(String key) {
-    switch (key) {
-      case 'orders':
-        return _ordersTab();
-      case 'products':
-        return _productsTab();
-      case 'categories':
-        return _categoriesTab();
-      case 'delivery_boys':
-        return DeliveryBoysScreen(actorRole: _role);
-      case 'pincodes':
-        return ServicePincodesScreen(actorRole: _role);
-      case 'hisab':
-        return _summaryTab();
-      case 'staff':
-        return _staffTab();
-      default:
-        return _ordersTab();
-    }
+  Widget _buildTopGlassHeader(String badgeText, String dateStr) {
+    return Container(
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFF1E7F3E),
+            Color(0xFF14532D),
+            Color(0xFF0E3B20),
+          ],
+        ),
+        borderRadius: BorderRadius.vertical(
+          bottom: Radius.circular(24),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x330E3B20),
+            blurRadius: 12,
+            offset: Offset(0, 5),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 10, 12, 16),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'DEUA FRESH • Owner Dashboard',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: _loadAllData,
+                    tooltip: 'Refresh',
+                    icon: _loading
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(
+                            Icons.refresh_rounded,
+                            color: Colors.white,
+                            size: 22,
+                          ),
+                  ),
+                  IconButton(
+                    onPressed: () async => await _w.onLogout(),
+                    tooltip: 'Logout',
+                    icon: const Icon(
+                      Icons.logout_rounded,
+                      color: Colors.white,
+                      size: 21,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(30),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.white.withValues(alpha: 0.26),
+                          Colors.white.withValues(alpha: 0.10),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(30),
+                      border: Border.all(
+                        color: const Color(0xFFFFE082).withValues(alpha: 0.65),
+                        width: 1.1,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.18),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: const Color(0xFFFFD54F).withValues(alpha: 0.25),
+                          ),
+                          child: const Icon(
+                            Icons.verified_user_rounded,
+                            size: 15,
+                            color: Color(0xFFFFE082),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            '$badgeText  |  $dateStr',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFourGlossyStatButtons() {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _Glossy3DStatCard(
+                label: 'Total Orders',
+                count: _countOrdersByFilter('All'),
+                topColor: const Color(0xFF2E8B46),
+                bottomColor: const Color(0xFF155728),
+                borderColor: const Color(0xFF66BB6A),
+                onTap: () => _openOrdersPage(initialFilter: 'All'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _Glossy3DStatCard(
+                label: 'Pending',
+                count: _countOrdersByFilter('Pending'),
+                topColor: const Color(0xFFE0821D),
+                bottomColor: const Color(0xFFB35609),
+                borderColor: const Color(0xFFFFB74D),
+                onTap: () => _openOrdersPage(initialFilter: 'Pending'),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _Glossy3DStatCard(
+                label: 'Out for Delivery',
+                count: _countOrdersByFilter('Out for Delivery'),
+                topColor: const Color(0xFF2575C8),
+                bottomColor: const Color(0xFF124A8E),
+                borderColor: const Color(0xFF64B5F6),
+                onTap: () => _openOrdersPage(initialFilter: 'Out for Delivery'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _Glossy3DStatCard(
+                label: 'Delivered',
+                count: _countOrdersByFilter('Delivered'),
+                topColor: const Color(0xFF7B3FA0),
+                bottomColor: const Color(0xFF4F216E),
+                borderColor: const Color(0xFFBA68C8),
+                onTap: () => _openOrdersPage(initialFilter: 'Delivered'),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSevenIconGrid() {
+    final ordersCard = _3DGridCard(
+      label: 'Orders',
+      iconWidget: const _3DShoppingCartIcon(),
+      onTap: () => _openOrdersPage(initialFilter: 'All'),
+    );
+
+    final productsCard = _3DGridCard(
+      label: 'Products',
+      iconWidget: const _3DBoxIcon(),
+      onTap: _openProductsPage,
+    );
+
+    final categoriesCard = _3DGridCard(
+      label: 'Categories',
+      iconWidget: const _3DFolderIcon(),
+      onTap: _openCategoriesPage,
+    );
+
+    final deliveryPinCard = _3DGridCard(
+      label: 'Delivery PIN',
+      iconWidget: const _3DDeliveryPinIcon(),
+      onTap: _openDeliveryPinPage,
+    );
+
+    final deliveryBoysCard = _3DGridCard(
+      label: 'Delivery Boys',
+      iconWidget: const _3DDeliveryTruckIcon(),
+      onTap: _openDeliveryBoysPage,
+    );
+
+    final reportsCard = _3DGridCard(
+      label: 'Reports',
+      iconWidget: const _3DChartIcon(),
+      onTap: _openReportsPage,
+    );
+
+    final adminManagementCard = _3DGridCard(
+      label: 'Admin\nManagement',
+      iconWidget: const _3DAdminUsersIcon(),
+      onTap: _openAdminManagementPage,
+    );
+
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(child: ordersCard),
+            const SizedBox(width: 12),
+            Expanded(child: productsCard),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(child: categoriesCard),
+            const SizedBox(width: 12),
+            Expanded(child: deliveryPinCard),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(child: deliveryBoysCard),
+            const SizedBox(width: 10),
+            Expanded(child: reportsCard),
+            const SizedBox(width: 10),
+            Expanded(child: adminManagementCard),
+          ],
+        ),
+      ],
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final tabs = _allowedTabs();
-    final safeIdx = _tabIndex < tabs.length ? _tabIndex : 0;
-    final currentTab = tabs.isNotEmpty
-        ? Map.from(tabs[safeIdx] as Map)
-        : {'key': 'orders', 'title': 'DEUA FRESH OWNER', 'label': 'Orders', 'icon': Icons.receipt_long};
+    final dateStr = _formattedTodayDate();
+    final badgeText = _ownerGlassBadgeText();
 
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF1B7A2B),
-        foregroundColor: Colors.white,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '${_isOwner ? "OWNER" : "ADMIN"} • ${_w.currentUser['name']}',
-              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.amberAccent),
+      backgroundColor: const Color(0xFFF3F6F4),
+      body: Column(
+        children: [
+          _buildTopGlassHeader(badgeText, dateStr),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _loadAllData,
+              color: const Color(0xFF1B7A2B),
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(14, 14, 14, 24),
+                child: Column(
+                  children: [
+                    _buildFourGlossyStatButtons(),
+                    const SizedBox(height: 16),
+                    _buildSevenIconGrid(),
+                  ],
+                ),
+              ),
             ),
-            Text(currentTab['title'].toString(), style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.bold)),
-          ],
-        ),
-        actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadAllData),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Logout',
-            onPressed: () async => await _w.onLogout(),
           ),
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF1B7A2B)))
-          : tabs.isEmpty
-              ? const Center(child: Text('आपको अभी कोई Access नहीं मिला है। Owner से संपर्क करें।'))
-              : _pageByKey(currentTab['key'].toString()),
-      bottomNavigationBar: tabs.length < 2
-          ? null
-          : NavigationBar(
-              selectedIndex: safeIdx,
-              backgroundColor: Colors.white,
-              indicatorColor: const Color(0xFFE8F5E9),
-              onDestinationSelected: (i) => setState(() => _tabIndex = i),
-              destinations: tabs.map((item) {
-                final t = Map.from(item as Map);
-                final ic = t['icon'] as IconData;
-                return NavigationDestination(
-                  icon: Icon(ic),
-                  selectedIcon: Icon(ic, color: const Color(0xFF1B7A2B)),
-                  label: t['label'].toString(),
-                );
-              }).toList(),
+    );
+  }
+}
+
+class _Glossy3DStatCard extends StatelessWidget {
+  final String label;
+  final int count;
+  final Color topColor;
+  final Color bottomColor;
+  final Color borderColor;
+  final VoidCallback onTap;
+
+  const _Glossy3DStatCard({
+    required this.label,
+    required this.count,
+    required this.topColor,
+    required this.bottomColor,
+    required this.borderColor,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          height: 64,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [topColor, bottomColor],
             ),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: borderColor.withValues(alpha: 0.75),
+              width: 1.4,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: bottomColor.withValues(alpha: 0.45),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Stack(
+            children: [
+              Positioned(
+                top: 3,
+                left: 8,
+                right: 8,
+                height: 22,
+                child: IgnorePointer(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(14),
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.white.withValues(alpha: 0.45),
+                          Colors.white.withValues(alpha: 0.04),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w700,
+                          shadows: [
+                            Shadow(
+                              color: Color(0x55000000),
+                              blurRadius: 3,
+                              offset: Offset(0, 1),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (count > 0)
+                        Text(
+                          '$count',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.92),
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _3DGridCard extends StatelessWidget {
+  final String label;
+  final Widget iconWidget;
+  final VoidCallback onTap;
+
+  const _3DGridCard({
+    required this.label,
+    required this.iconWidget,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(18),
+      elevation: 0,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 116),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: const Color(0xFFE5EAE7),
+              width: 1,
+            ),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x16000000),
+                blurRadius: 8,
+                offset: Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(
+                height: 54,
+                child: Center(child: iconWidget),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Color(0xFF1A1D1B),
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w600,
+                  height: 1.2,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _3DShoppingCartIcon extends StatelessWidget {
+  const _3DShoppingCartIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        const Icon(Icons.shopping_cart_rounded, size: 46, color: Color(0xFFD93829)),
+        Positioned(
+          top: 5,
+          right: 6,
+          child: Container(
+            width: 10,
+            height: 10,
+            decoration: const BoxDecoration(
+              color: Color(0xFFFFCA28),
+              shape: BoxShape.circle,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _3DBoxIcon extends StatelessWidget {
+  const _3DBoxIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFD7A86E), Color(0xFF9C6B36)],
+        ),
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x335D3A1A),
+            blurRadius: 5,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
+      child: const Icon(Icons.inventory_2_rounded, color: Colors.white, size: 26),
+    );
+  }
+}
+
+class _3DFolderIcon extends StatelessWidget {
+  const _3DFolderIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        Positioned(
+          top: 4,
+          left: 10,
+          child: Transform.rotate(
+            angle: -0.2,
+            child: Container(
+              width: 16,
+              height: 16,
+              decoration: BoxDecoration(
+                color: const Color(0xFF42A5F5),
+                borderRadius: BorderRadius.circular(3),
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          top: 3,
+          right: 10,
+          child: Transform.rotate(
+            angle: 0.2,
+            child: Container(
+              width: 16,
+              height: 16,
+              decoration: BoxDecoration(
+                color: const Color(0xFFEC407A),
+                borderRadius: BorderRadius.circular(3),
+              ),
+            ),
+          ),
+        ),
+        const Padding(
+          padding: EdgeInsets.only(top: 6),
+          child: Icon(Icons.folder_rounded, size: 44, color: Color(0xFFFBC02D)),
+        ),
+      ],
+    );
+  }
+}
+
+class _3DDeliveryPinIcon extends StatelessWidget {
+  const _3DDeliveryPinIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Stack(
+      alignment: Alignment.center,
+      children: [
+        Padding(
+          padding: EdgeInsets.only(top: 10),
+          child: Icon(Icons.mark_email_unread_rounded, size: 38, color: Color(0xFFECEFF1)),
+        ),
+        Positioned(
+          top: 1,
+          child: Icon(Icons.location_on_rounded, size: 30, color: Color(0xFFE53935)),
+        ),
+      ],
+    );
+  }
+}
+
+class _3DDeliveryTruckIcon extends StatelessWidget {
+  const _3DDeliveryTruckIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Icon(
+      Icons.local_shipping_rounded,
+      size: 46,
+      color: Color(0xFFEF6C00),
+    );
+  }
+}
+
+class _3DChartIcon extends StatelessWidget {
+  const _3DChartIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        _bar(18, const Color(0xFF42A5F5)),
+        const SizedBox(width: 4),
+        _bar(28, const Color(0xFFEF5350)),
+        const SizedBox(width: 4),
+        _bar(38, const Color(0xFF43A047)),
+      ],
+    );
+  }
+
+  Widget _bar(double height, Color color) {
+    return Container(
+      width: 10,
+      height: height,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x22000000),
+            blurRadius: 3,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _3DAdminUsersIcon extends StatelessWidget {
+  const _3DAdminUsersIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.person_rounded, size: 34, color: Color(0xFF42A5F5)),
+        Icon(Icons.person_rounded, size: 34, color: Color(0xFF37474F)),
+      ],
     );
   }
 }
