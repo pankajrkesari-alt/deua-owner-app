@@ -1,11 +1,14 @@
 import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 const String kOwnerRecoveryKey = 'Deua199800';
 const Duration kIdleLogoutDuration = Duration(minutes: 30);
+const String kDeliveryBoyLoginUrl = 'https://deua-fresh.pages.dev/delivery-login';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,7 +29,7 @@ class DeuaOwnerApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
-        scaffoldBackgroundColor: const Color(0xFFF3F6F4),
+        scaffoldBackgroundColor: const Color(0xFF1B5E20),
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF1B7A2B),
           primary: const Color(0xFF1B7A2B),
@@ -114,6 +117,7 @@ class _AuthGateScreenState extends State {
   Widget build(BuildContext context) {
     if (_checking) {
       return const Scaffold(
+        backgroundColor: Color(0xFFF3F6F4),
         body: Center(child: CircularProgressIndicator(color: Color(0xFF1B7A2B))),
       );
     }
@@ -346,6 +350,7 @@ class _LoginScreenState extends State {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF3F6F4),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -655,6 +660,37 @@ class _OwnerDashboardScreenState extends State with WidgetsBindingObserver {
       if (st == filter) c++;
     }
     return c;
+  }
+
+  Future _openDeliveryBoyLoginLink() async {
+    _resetIdleTimer(forcePersist: true);
+    final uri = Uri.parse(kDeliveryBoyLoginUrl);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      await Clipboard.setData(const ClipboardData(text: kDeliveryBoyLoginUrl));
+      _showMsg('Link copied: $kDeliveryBoyLoginUrl');
+    }
+  }
+
+  Future _copyDeliveryBoyLoginLink() async {
+    _resetIdleTimer(forcePersist: true);
+    await Clipboard.setData(const ClipboardData(text: kDeliveryBoyLoginUrl));
+    _showMsg('Delivery Boy Login Link copy ho gaya!');
+  }
+
+  Future _shareDeliveryBoyLoginWhatsApp() async {
+    _resetIdleTimer(forcePersist: true);
+    final msg = Uri.encodeComponent(
+      'DEUA FRESH Delivery Boy Login Link:\n$kDeliveryBoyLoginUrl',
+    );
+    final waUri = Uri.parse('https://wa.me/?text=$msg');
+    if (await canLaunchUrl(waUri)) {
+      await launchUrl(waUri, mode: LaunchMode.externalApplication);
+    } else {
+      await Clipboard.setData(const ClipboardData(text: kDeliveryBoyLoginUrl));
+      _showMsg('WhatsApp nahi khula, link copy kar diya gaya hai.');
+    }
   }
 
   void _openSubPage({
@@ -1751,34 +1787,23 @@ class _OwnerDashboardScreenState extends State with WidgetsBindingObserver {
     );
   }
 
-  Widget _buildTopGlassHeader(String badgeText, String dateTimeStr) {
+  Widget _buildTopGreenHeader(String badgeText, String dateTimeStr) {
     return Container(
       width: double.infinity,
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
           colors: [
-            Color(0xFF1E7F3E),
-            Color(0xFF14532D),
-            Color(0xFF0E3B20),
+            Color(0xFF1B5E20),
+            Color(0xFF144A18),
           ],
         ),
-        borderRadius: BorderRadius.vertical(
-          bottom: Radius.circular(20),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Color(0x330E3B20),
-            blurRadius: 10,
-            offset: Offset(0, 4),
-          ),
-        ],
       ),
       child: SafeArea(
         bottom: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 6, 10, 11),
+          padding: const EdgeInsets.fromLTRB(14, 10, 10, 14),
           child: Column(
             children: [
               Row(
@@ -1786,11 +1811,12 @@ class _OwnerDashboardScreenState extends State with WidgetsBindingObserver {
                   const Expanded(
                     child: Text(
                       'DEUA FRESH • Owner Dashboard',
+                      textAlign: TextAlign.center,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 16.5,
+                        fontSize: 17,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.2,
                       ),
@@ -1812,11 +1838,7 @@ class _OwnerDashboardScreenState extends State with WidgetsBindingObserver {
                               color: Colors.white,
                             ),
                           )
-                        : const Icon(
-                            Icons.refresh_rounded,
-                            color: Colors.white,
-                            size: 20,
-                          ),
+                        : const Icon(Icons.refresh_rounded, color: Colors.white, size: 19),
                   ),
                   IconButton(
                     visualDensity: VisualDensity.compact,
@@ -1826,77 +1848,34 @@ class _OwnerDashboardScreenState extends State with WidgetsBindingObserver {
                       await _w.onLogout();
                     },
                     tooltip: 'Logout',
-                    icon: const Icon(
-                      Icons.logout_rounded,
-                      color: Colors.white,
-                      size: 20,
-                    ),
+                    icon: const Icon(Icons.logout_rounded, color: Colors.white, size: 19),
                   ),
                 ],
               ),
               const SizedBox(height: 4),
               ClipRRect(
-                borderRadius: BorderRadius.circular(30),
+                borderRadius: BorderRadius.circular(20),
                 child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                  filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
                   child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.white.withValues(alpha: 0.26),
-                          Colors.white.withValues(alpha: 0.10),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(30),
+                      color: Colors.white.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: const Color(0xFFFFE082).withValues(alpha: 0.65),
-                        width: 1.1,
+                        color: Colors.white.withValues(alpha: 0.28),
+                        width: 0.8,
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.18),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
                     ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(3),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: const Color(0xFFFFD54F).withValues(alpha: 0.25),
-                          ),
-                          child: const Icon(
-                            Icons.verified_user_rounded,
-                            size: 14,
-                            color: Color(0xFFFFE082),
-                          ),
-                        ),
-                        const SizedBox(width: 7),
-                        Flexible(
-                          child: Text(
-                            '$badgeText  |  $dateTimeStr',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 0.15,
-                            ),
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      '$badgeText  •  $dateTimeStr',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFFE8F5E9),
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                 ),
@@ -1908,55 +1887,55 @@ class _OwnerDashboardScreenState extends State with WidgetsBindingObserver {
     );
   }
 
-  Widget _buildFourGlossyStatButtons() {
+  Widget _buildFourBeveledStatButtons() {
     return Column(
       children: [
         Row(
           children: [
             Expanded(
-              child: _Glossy3DStatCard(
+              child: _Beveled3DStatButton(
                 label: 'Total Orders',
                 count: _countOrdersByFilter('All'),
-                topColor: const Color(0xFF2E8B46),
-                bottomColor: const Color(0xFF155728),
-                borderColor: const Color(0xFF66BB6A),
+                outerColor: const Color(0xFF1F6E33),
+                innerTopColor: const Color(0xFF358A49),
+                innerBottomColor: const Color(0xFF1B632D),
                 onTap: () => _openOrdersPage(initialFilter: 'All'),
               ),
             ),
             const SizedBox(width: 10),
             Expanded(
-              child: _Glossy3DStatCard(
+              child: _Beveled3DStatButton(
                 label: 'Pending',
                 count: _countOrdersByFilter('Pending'),
-                topColor: const Color(0xFFE0821D),
-                bottomColor: const Color(0xFFB35609),
-                borderColor: const Color(0xFFFFB74D),
+                outerColor: const Color(0xFFD68024),
+                innerTopColor: const Color(0xFFE5973A),
+                innerBottomColor: const Color(0xFFC87218),
                 onTap: () => _openOrdersPage(initialFilter: 'Pending'),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 9),
         Row(
           children: [
             Expanded(
-              child: _Glossy3DStatCard(
+              child: _Beveled3DStatButton(
                 label: 'Out for Delivery',
                 count: _countOrdersByFilter('Out for Delivery'),
-                topColor: const Color(0xFF2575C8),
-                bottomColor: const Color(0xFF124A8E),
-                borderColor: const Color(0xFF64B5F6),
+                outerColor: const Color(0xFF2873BC),
+                innerTopColor: const Color(0xFF3E8AD4),
+                innerBottomColor: const Color(0xFF2064A8),
                 onTap: () => _openOrdersPage(initialFilter: 'Out for Delivery'),
               ),
             ),
             const SizedBox(width: 10),
             Expanded(
-              child: _Glossy3DStatCard(
+              child: _Beveled3DStatButton(
                 label: 'Delivered',
                 count: _countOrdersByFilter('Delivered'),
-                topColor: const Color(0xFF7B3FA0),
-                bottomColor: const Color(0xFF4F216E),
-                borderColor: const Color(0xFFBA68C8),
+                outerColor: const Color(0xFF75429E),
+                innerTopColor: const Color(0xFF8B56B5),
+                innerBottomColor: const Color(0xFF66368B),
                 onTap: () => _openOrdersPage(initialFilter: 'Delivered'),
               ),
             ),
@@ -1967,80 +1946,167 @@ class _OwnerDashboardScreenState extends State with WidgetsBindingObserver {
   }
 
   Widget _buildSevenIconGrid() {
-    final ordersCard = _3DGridCard(
-      label: 'Orders',
-      iconWidget: const _3DShoppingCartIcon(),
-      onTap: () => _openOrdersPage(initialFilter: 'All'),
-    );
-
-    final productsCard = _3DGridCard(
-      label: 'Products',
-      iconWidget: const _3DBoxIcon(),
-      onTap: _openProductsPage,
-    );
-
-    final categoriesCard = _3DGridCard(
-      label: 'Categories',
-      iconWidget: const _3DFolderIcon(),
-      onTap: _openCategoriesPage,
-    );
-
-    final deliveryPinCard = _3DGridCard(
-      label: 'Delivery PIN',
-      iconWidget: const _3DDeliveryPinIcon(),
-      onTap: _openDeliveryPinPage,
-    );
-
-    final deliveryBoysCard = _3DGridCard(
-      label: 'Delivery Boys',
-      iconWidget: const _3DDeliveryTruckIcon(),
-      compact: true,
-      onTap: _openDeliveryBoysPage,
-    );
-
-    final reportsCard = _3DGridCard(
-      label: 'Reports',
-      iconWidget: const _3DChartIcon(),
-      compact: true,
-      onTap: _openReportsPage,
-    );
-
-    final adminManagementCard = _3DGridCard(
-      label: 'Admin\nManagement',
-      iconWidget: const _3DAdminUsersIcon(),
-      compact: true,
-      onTap: _openAdminManagementPage,
-    );
-
     return Column(
       children: [
         Row(
           children: [
-            Expanded(child: ordersCard),
+            Expanded(
+              child: _Raised3DIconTile(
+                label: 'Orders',
+                iconWidget: const _Cart3DArtwork(),
+                onTap: () => _openOrdersPage(initialFilter: 'All'),
+              ),
+            ),
             const SizedBox(width: 10),
-            Expanded(child: productsCard),
+            Expanded(
+              child: _Raised3DIconTile(
+                label: 'Products',
+                iconWidget: const _ParcelBox3DArtwork(),
+                onTap: _openProductsPage,
+              ),
+            ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 9),
         Row(
           children: [
-            Expanded(child: categoriesCard),
+            Expanded(
+              child: _Raised3DIconTile(
+                label: 'Categories',
+                iconWidget: const _Folders3DArtwork(),
+                onTap: _openCategoriesPage,
+              ),
+            ),
             const SizedBox(width: 10),
-            Expanded(child: deliveryPinCard),
+            Expanded(
+              child: _Raised3DIconTile(
+                label: 'Delivery PIN',
+                iconWidget: const _PinMail3DArtwork(),
+                onTap: _openDeliveryPinPage,
+              ),
+            ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 9),
         Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Expanded(child: deliveryBoysCard),
+            Expanded(
+              child: _Raised3DIconTile(
+                label: 'Delivery Boys',
+                iconWidget: const _DeliveryTruck3DArtwork(),
+                compact: true,
+                onTap: _openDeliveryBoysPage,
+              ),
+            ),
             const SizedBox(width: 8),
-            Expanded(child: reportsCard),
+            Expanded(
+              child: _Raised3DIconTile(
+                label: 'Reports',
+                iconWidget: const _BarChart3DArtwork(),
+                compact: true,
+                onTap: _openReportsPage,
+              ),
+            ),
             const SizedBox(width: 8),
-            Expanded(child: adminManagementCard),
+            Expanded(
+              child: _Raised3DIconTile(
+                label: 'Admin\nManagement',
+                iconWidget: const _AdminPair3DArtwork(),
+                compact: true,
+                onTap: _openAdminManagementPage,
+              ),
+            ),
           ],
         ),
       ],
+    );
+  }
+
+  Widget _buildDeliveryBoyLoginLinkCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(10, 9, 10, 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFAFAFA),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE6E9E6), width: 1),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x14000000),
+            blurRadius: 6,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          const Text(
+            'Delivery Boy Login Link',
+            style: TextStyle(
+              color: Color(0xFF1E2220),
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                flex: 11,
+                child: Material(
+                  color: const Color(0xFF194D1E),
+                  borderRadius: BorderRadius.circular(8),
+                  child: InkWell(
+                    onTap: _openDeliveryBoyLoginLink,
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      height: 62,
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x28000000),
+                            blurRadius: 4,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: const Text(
+                        'Login/Open Login',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                flex: 10,
+                child: Column(
+                  children: [
+                    _SoftGreenActionButton(
+                      label: 'Copy Link',
+                      onTap: _copyDeliveryBoyLoginLink,
+                    ),
+                    const SizedBox(height: 6),
+                    _SoftGreenActionButton(
+                      label: 'WhatsApp',
+                      onTap: _shareDeliveryBoyLoginWhatsApp,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -2053,26 +2119,38 @@ class _OwnerDashboardScreenState extends State with WidgetsBindingObserver {
       onPointerDown: (_) => _resetIdleTimer(),
       onPointerMove: (_) => _resetIdleTimer(),
       child: Scaffold(
-        backgroundColor: const Color(0xFFF3F6F4),
+        backgroundColor: const Color(0xFF1B5E20),
         body: Column(
           children: [
-            _buildTopGlassHeader(badgeText, dateTimeStr),
+            _buildTopGreenHeader(badgeText, dateTimeStr),
             Expanded(
-              child: RefreshIndicator(
-                onRefresh: () {
-                  _resetIdleTimer(forcePersist: true);
-                  return _loadAllData();
-                },
-                color: const Color(0xFF1B7A2B),
-                child: SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 14),
-                  child: Column(
-                    children: [
-                      _buildFourGlossyStatButtons(),
-                      const SizedBox(height: 10),
-                      _buildSevenIconGrid(),
-                    ],
+              child: Container(
+                width: double.infinity,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFF3F5F4),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+                ),
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+                  child: RefreshIndicator(
+                    onRefresh: () {
+                      _resetIdleTimer(forcePersist: true);
+                      return _loadAllData();
+                    },
+                    color: const Color(0xFF1B7A2B),
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
+                      child: Column(
+                        children: [
+                          _buildFourBeveledStatButtons(),
+                          const SizedBox(height: 10),
+                          _buildSevenIconGrid(),
+                          const SizedBox(height: 10),
+                          _buildDeliveryBoyLoginLinkCard(),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -2307,20 +2385,69 @@ class _ServicePincodesScreenState extends State {
   }
 }
 
-class _Glossy3DStatCard extends StatelessWidget {
+class _SoftGreenActionButton extends StatelessWidget {
   final String label;
-  final int count;
-  final Color topColor;
-  final Color bottomColor;
-  final Color borderColor;
   final VoidCallback onTap;
 
-  const _Glossy3DStatCard({
+  const _SoftGreenActionButton({
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: const Color(0xFFBCE3C2),
+      borderRadius: BorderRadius.circular(7),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(7),
+        child: Container(
+          height: 28,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(7),
+            gradient: const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFFC8E9CD), Color(0xFFAAD8B1)],
+            ),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x1C000000),
+                blurRadius: 3,
+                offset: Offset(0, 1.5),
+              ),
+            ],
+          ),
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: Color(0xFF143D19),
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Beveled3DStatButton extends StatelessWidget {
+  final String label;
+  final int count;
+  final Color outerColor;
+  final Color innerTopColor;
+  final Color innerBottomColor;
+  final VoidCallback onTap;
+
+  const _Beveled3DStatButton({
     required this.label,
     required this.count,
-    required this.topColor,
-    required this.bottomColor,
-    required this.borderColor,
+    required this.outerColor,
+    required this.innerTopColor,
+    required this.innerBottomColor,
     required this.onTap,
   });
 
@@ -2328,57 +2455,65 @@ class _Glossy3DStatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.transparent,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(13),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(13),
         child: Container(
-          height: 50,
+          height: 52,
+          padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [topColor, bottomColor],
-            ),
-            borderRadius: BorderRadius.circular(16),
+            color: outerColor,
+            borderRadius: BorderRadius.circular(13),
             border: Border.all(
-              color: borderColor.withValues(alpha: 0.75),
-              width: 1.3,
+              color: Colors.white.withValues(alpha: 0.35),
+              width: 1,
             ),
             boxShadow: [
               BoxShadow(
-                color: bottomColor.withValues(alpha: 0.42),
-                blurRadius: 7,
+                color: outerColor.withValues(alpha: 0.45),
+                blurRadius: 6,
                 offset: const Offset(0, 3),
               ),
             ],
           ),
-          child: Stack(
-            children: [
-              Positioned(
-                top: 2,
-                left: 7,
-                right: 7,
-                height: 17,
-                child: IgnorePointer(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.white.withValues(alpha: 0.45),
-                          Colors.white.withValues(alpha: 0.04),
-                        ],
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(9),
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [innerTopColor, innerBottomColor],
+              ),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.25),
+                width: 0.8,
+              ),
+            ),
+            child: Stack(
+              children: [
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: 15,
+                  child: IgnorePointer(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(9)),
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.white.withValues(alpha: 0.36),
+                            Colors.white.withValues(alpha: 0.02),
+                          ],
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -2386,16 +2521,15 @@ class _Glossy3DStatCard extends StatelessWidget {
                         label,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.center,
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 13.5,
+                          fontSize: 13,
                           fontWeight: FontWeight.w700,
                           height: 1.1,
                           shadows: [
                             Shadow(
-                              color: Color(0x55000000),
-                              blurRadius: 3,
+                              color: Color(0x4D000000),
+                              blurRadius: 2,
                               offset: Offset(0, 1),
                             ),
                           ],
@@ -2405,8 +2539,8 @@ class _Glossy3DStatCard extends StatelessWidget {
                         Text(
                           '$count',
                           style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.94),
-                            fontSize: 11,
+                            color: Colors.white.withValues(alpha: 0.95),
+                            fontSize: 10.5,
                             fontWeight: FontWeight.w600,
                             height: 1.15,
                           ),
@@ -2414,8 +2548,8 @@ class _Glossy3DStatCard extends StatelessWidget {
                     ],
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -2423,13 +2557,13 @@ class _Glossy3DStatCard extends StatelessWidget {
   }
 }
 
-class _3DGridCard extends StatelessWidget {
+class _Raised3DIconTile extends StatelessWidget {
   final String label;
   final Widget iconWidget;
   final bool compact;
   final VoidCallback onTap;
 
-  const _3DGridCard({
+  const _Raised3DIconTile({
     required this.label,
     required this.iconWidget,
     this.compact = false,
@@ -2439,26 +2573,22 @@ class _3DGridCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      elevation: 0,
+      color: const Color(0xFFFAFAFA),
+      borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         child: Container(
-          constraints: BoxConstraints(minHeight: compact ? 88 : 92),
-          padding: EdgeInsets.symmetric(horizontal: 6, vertical: compact ? 7 : 8),
+          constraints: BoxConstraints(minHeight: compact ? 84 : 88),
+          padding: EdgeInsets.symmetric(horizontal: 6, vertical: compact ? 6 : 7),
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: const Color(0xFFE5EAE7),
-              width: 1,
-            ),
+            color: const Color(0xFFFAFAFA),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFE5EAE7), width: 1),
             boxShadow: const [
               BoxShadow(
-                color: Color(0x16000000),
-                blurRadius: 7,
+                color: Color(0x18000000),
+                blurRadius: 6,
                 offset: Offset(0, 3),
               ),
             ],
@@ -2467,7 +2597,7 @@ class _3DGridCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               SizedBox(
-                height: compact ? 38 : 42,
+                height: compact ? 36 : 40,
                 child: Center(
                   child: FittedBox(
                     fit: BoxFit.scaleDown,
@@ -2475,13 +2605,13 @@ class _3DGridCard extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 5),
+              const SizedBox(height: 4),
               Text(
                 label,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: const Color(0xFF1A1D1B),
-                  fontSize: compact ? 12 : 13,
+                  color: const Color(0xFF1C201E),
+                  fontSize: compact ? 11.5 : 12.5,
                   fontWeight: FontWeight.w600,
                   height: 1.15,
                 ),
@@ -2494,23 +2624,23 @@ class _3DGridCard extends StatelessWidget {
   }
 }
 
-class _3DShoppingCartIcon extends StatelessWidget {
-  const _3DShoppingCartIcon();
+class _Cart3DArtwork extends StatelessWidget {
+  const _Cart3DArtwork();
 
   @override
   Widget build(BuildContext context) {
     return Stack(
       alignment: Alignment.center,
       children: [
-        const Icon(Icons.shopping_cart_rounded, size: 42, color: Color(0xFFD93829)),
+        const Icon(Icons.shopping_cart_rounded, size: 38, color: Color(0xFFD63829)),
         Positioned(
-          top: 4,
-          right: 5,
+          top: 2,
+          right: 4,
           child: Container(
-            width: 9,
-            height: 9,
+            width: 8,
+            height: 8,
             decoration: const BoxDecoration(
-              color: Color(0xFFFFCA28),
+              color: Color(0xFFFBC02D),
               shape: BoxShape.circle,
             ),
           ),
@@ -2520,36 +2650,42 @@ class _3DShoppingCartIcon extends StatelessWidget {
   }
 }
 
-class _3DBoxIcon extends StatelessWidget {
-  const _3DBoxIcon();
+class _ParcelBox3DArtwork extends StatelessWidget {
+  const _ParcelBox3DArtwork();
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 40,
-      height: 40,
+      width: 36,
+      height: 36,
       decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(6),
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFFD7A86E), Color(0xFF9C6B36)],
+          colors: [Color(0xFFD7A86E), Color(0xFF9B6834)],
         ),
-        borderRadius: BorderRadius.circular(10),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x335D3A1A),
-            blurRadius: 5,
-            offset: Offset(0, 3),
+            color: Color(0x2B000000),
+            blurRadius: 4,
+            offset: Offset(0, 2),
           ),
         ],
       ),
-      child: const Icon(Icons.inventory_2_rounded, color: Colors.white, size: 24),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Container(width: 7, height: 36, color: const Color(0xFFE7C496).withValues(alpha: 0.7)),
+          Container(width: 36, height: 2, color: const Color(0xFF7B4E22).withValues(alpha: 0.5)),
+        ],
+      ),
     );
   }
 }
 
-class _3DFolderIcon extends StatelessWidget {
-  const _3DFolderIcon();
+class _Folders3DArtwork extends StatelessWidget {
+  const _Folders3DArtwork();
 
   @override
   Widget build(BuildContext context) {
@@ -2557,46 +2693,46 @@ class _3DFolderIcon extends StatelessWidget {
       alignment: Alignment.center,
       children: [
         Positioned(
-          top: 3,
-          left: 9,
+          top: 2,
+          left: 8,
           child: Transform.rotate(
             angle: -0.2,
             child: Container(
-              width: 15,
-              height: 15,
+              width: 14,
+              height: 14,
               decoration: BoxDecoration(
                 color: const Color(0xFF42A5F5),
-                borderRadius: BorderRadius.circular(3),
+                borderRadius: BorderRadius.circular(2.5),
               ),
             ),
           ),
         ),
         Positioned(
-          top: 2,
-          right: 9,
+          top: 1,
+          right: 8,
           child: Transform.rotate(
             angle: 0.2,
             child: Container(
-              width: 15,
-              height: 15,
+              width: 14,
+              height: 14,
               decoration: BoxDecoration(
                 color: const Color(0xFFEC407A),
-                borderRadius: BorderRadius.circular(3),
+                borderRadius: BorderRadius.circular(2.5),
               ),
             ),
           ),
         ),
         const Padding(
           padding: EdgeInsets.only(top: 5),
-          child: Icon(Icons.folder_rounded, size: 40, color: Color(0xFFFBC02D)),
+          child: Icon(Icons.folder_rounded, size: 36, color: Color(0xFFFBC02D)),
         ),
       ],
     );
   }
 }
 
-class _3DDeliveryPinIcon extends StatelessWidget {
-  const _3DDeliveryPinIcon();
+class _PinMail3DArtwork extends StatelessWidget {
+  const _PinMail3DArtwork();
 
   @override
   Widget build(BuildContext context) {
@@ -2605,32 +2741,28 @@ class _3DDeliveryPinIcon extends StatelessWidget {
       children: [
         Padding(
           padding: EdgeInsets.only(top: 9),
-          child: Icon(Icons.mark_email_unread_rounded, size: 35, color: Color(0xFFECEFF1)),
+          child: Icon(Icons.mark_email_unread_rounded, size: 32, color: Color(0xFFCFD8DC)),
         ),
         Positioned(
-          top: 1,
-          child: Icon(Icons.location_on_rounded, size: 28, color: Color(0xFFE53935)),
+          top: 0,
+          child: Icon(Icons.location_on_rounded, size: 25, color: Color(0xFFE53935)),
         ),
       ],
     );
   }
 }
 
-class _3DDeliveryTruckIcon extends StatelessWidget {
-  const _3DDeliveryTruckIcon();
+class _DeliveryTruck3DArtwork extends StatelessWidget {
+  const _DeliveryTruck3DArtwork();
 
   @override
   Widget build(BuildContext context) {
-    return const Icon(
-      Icons.local_shipping_rounded,
-      size: 40,
-      color: Color(0xFFEF6C00),
-    );
+    return const Icon(Icons.local_shipping_rounded, size: 36, color: Color(0xFFE67E22));
   }
 }
 
-class _3DChartIcon extends StatelessWidget {
-  const _3DChartIcon();
+class _BarChart3DArtwork extends StatelessWidget {
+  const _BarChart3DArtwork();
 
   @override
   Widget build(BuildContext context) {
@@ -2638,44 +2770,26 @@ class _3DChartIcon extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        _bar(15, const Color(0xFF42A5F5)),
-        const SizedBox(width: 3.5),
-        _bar(24, const Color(0xFFEF5350)),
-        const SizedBox(width: 3.5),
-        _bar(33, const Color(0xFF43A047)),
+        Container(width: 8, height: 14, decoration: BoxDecoration(color: const Color(0xFF42A5F5), borderRadius: BorderRadius.circular(2))),
+        const SizedBox(width: 3),
+        Container(width: 8, height: 22, decoration: BoxDecoration(color: const Color(0xFFEF5350), borderRadius: BorderRadius.circular(2))),
+        const SizedBox(width: 3),
+        Container(width: 8, height: 30, decoration: BoxDecoration(color: const Color(0xFF43A047), borderRadius: BorderRadius.circular(2))),
       ],
-    );
-  }
-
-  Widget _bar(double height, Color color) {
-    return Container(
-      width: 9,
-      height: height,
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x22000000),
-            blurRadius: 3,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
     );
   }
 }
 
-class _3DAdminUsersIcon extends StatelessWidget {
-  const _3DAdminUsersIcon();
+class _AdminPair3DArtwork extends StatelessWidget {
+  const _AdminPair3DArtwork();
 
   @override
   Widget build(BuildContext context) {
     return const Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(Icons.person_rounded, size: 30, color: Color(0xFF42A5F5)),
-        Icon(Icons.person_rounded, size: 30, color: Color(0xFF37474F)),
+        Icon(Icons.person_rounded, size: 28, color: Color(0xFF42A5F5)),
+        Icon(Icons.person_rounded, size: 28, color: Color(0xFF37474F)),
       ],
     );
   }
