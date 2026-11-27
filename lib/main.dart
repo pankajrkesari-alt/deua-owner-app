@@ -1953,6 +1953,7 @@ class _OwnerDashboardScreenState extends State with WidgetsBindingObserver {
             Expanded(
               child: _Raised3DIconTile(
                 label: 'Orders',
+                glassTint: const Color(0xFFFFEBEE),
                 iconWidget: const _Cart3DArtwork(),
                 onTap: () => _openOrdersPage(initialFilter: 'All'),
               ),
@@ -1961,6 +1962,7 @@ class _OwnerDashboardScreenState extends State with WidgetsBindingObserver {
             Expanded(
               child: _Raised3DIconTile(
                 label: 'Products',
+                glassTint: const Color(0xFFFDF3E7),
                 iconWidget: const _ParcelBox3DArtwork(),
                 onTap: _openProductsPage,
               ),
@@ -1973,6 +1975,7 @@ class _OwnerDashboardScreenState extends State with WidgetsBindingObserver {
             Expanded(
               child: _Raised3DIconTile(
                 label: 'Categories',
+                glassTint: const Color(0xFFFFFBE6),
                 iconWidget: const _Folders3DArtwork(),
                 onTap: _openCategoriesPage,
               ),
@@ -1981,6 +1984,7 @@ class _OwnerDashboardScreenState extends State with WidgetsBindingObserver {
             Expanded(
               child: _Raised3DIconTile(
                 label: 'Delivery PIN',
+                glassTint: const Color(0xFFEFF6FC),
                 iconWidget: const _PinMail3DArtwork(),
                 onTap: _openDeliveryPinPage,
               ),
@@ -1993,6 +1997,7 @@ class _OwnerDashboardScreenState extends State with WidgetsBindingObserver {
             Expanded(
               child: _Raised3DIconTile(
                 label: 'Delivery Boys',
+                glassTint: const Color(0xFFFFF4E8),
                 iconWidget: const _DeliveryTruck3DArtwork(),
                 compact: true,
                 onTap: _openDeliveryBoysPage,
@@ -2002,6 +2007,7 @@ class _OwnerDashboardScreenState extends State with WidgetsBindingObserver {
             Expanded(
               child: _Raised3DIconTile(
                 label: 'Reports',
+                glassTint: const Color(0xFFEBF7EE),
                 iconWidget: const _BarChart3DArtwork(),
                 compact: true,
                 onTap: _openReportsPage,
@@ -2011,6 +2017,7 @@ class _OwnerDashboardScreenState extends State with WidgetsBindingObserver {
             Expanded(
               child: _Raised3DIconTile(
                 label: 'Admin\nManagement',
+                glassTint: const Color(0xFFEDF3FA),
                 iconWidget: const _AdminPair3DArtwork(),
                 compact: true,
                 onTap: _openAdminManagementPage,
@@ -2560,18 +2567,23 @@ class _Beveled3DStatButton extends StatelessWidget {
 class _Raised3DIconTile extends StatelessWidget {
   final String label;
   final Widget iconWidget;
+  final Color glassTint;
   final bool compact;
   final VoidCallback onTap;
 
   const _Raised3DIconTile({
     required this.label,
     required this.iconWidget,
+    this.glassTint = const Color(0xFFF4F8F5),
     this.compact = false,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final double capsuleW = compact ? 58 : 74;
+    final double capsuleH = compact ? 38 : 44;
+
     return Material(
       color: const Color(0xFFFAFAFA),
       borderRadius: BorderRadius.circular(14),
@@ -2596,16 +2608,75 @@ class _Raised3DIconTile extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              SizedBox(
-                height: compact ? 36 : 40,
-                child: Center(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: iconWidget,
+              Container(
+                width: capsuleW,
+                height: capsuleH,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(capsuleH / 2),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Colors.white.withValues(alpha: 0.92),
+                      glassTint.withValues(alpha: 0.72),
+                      const Color(0xFFDCE7E0).withValues(alpha: 0.65),
+                    ],
+                  ),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.95),
+                    width: 1.3,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF1B5E20).withValues(alpha: 0.12),
+                      blurRadius: 6,
+                      offset: const Offset(0, 3),
+                    ),
+                    const BoxShadow(
+                      color: Colors.white,
+                      blurRadius: 2,
+                      offset: Offset(-1, -1),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(capsuleH / 2),
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Positioned(
+                        top: 2,
+                        left: 6,
+                        right: 6,
+                        height: capsuleH * 0.42,
+                        child: IgnorePointer(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(capsuleH / 2),
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Colors.white.withValues(alpha: 0.75),
+                                  Colors.white.withValues(alpha: 0.05),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: iconWidget,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 5),
               Text(
                 label,
                 textAlign: TextAlign.center,
