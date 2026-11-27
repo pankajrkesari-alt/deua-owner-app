@@ -6,6 +6,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'delivery_boys_screen.dart';
+import 'service_pincodes_screen.dart';
+
 const String kOwnerRecoveryKey = 'Deua199800';
 const Duration kIdleLogoutDuration = Duration(minutes: 30);
 const String kDeliveryBoyLoginUrl = 'https://deua-fresh.pages.dev/delivery-login';
@@ -1905,24 +1908,24 @@ class _OwnerDashboardScreenState extends State with WidgetsBindingObserver {
                 count: _countOrdersByFilter('All'),
                 outerColor: const Color(0xFF1F6E33),
                 innerTopColor: const Color(0xFF39944F),
-                innerBottomColor: const Color(0xFF175B28),
+                innerBottomColor: const Color(0xFF145223),
                 onTap: () => _openOrdersPage(initialFilter: 'All'),
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 11),
             Expanded(
               child: _Beveled3DStatButton(
                 label: 'Pending',
                 count: _countOrdersByFilter('Pending'),
                 outerColor: const Color(0xFFD68024),
                 innerTopColor: const Color(0xFFECA042),
-                innerBottomColor: const Color(0xFFBA6812),
+                innerBottomColor: const Color(0xFFB3600C),
                 onTap: () => _openOrdersPage(initialFilter: 'Pending'),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 9),
+        const SizedBox(height: 10),
         Row(
           children: [
             Expanded(
@@ -1931,18 +1934,18 @@ class _OwnerDashboardScreenState extends State with WidgetsBindingObserver {
                 count: _countOrdersByFilter('Out for Delivery'),
                 outerColor: const Color(0xFF2873BC),
                 innerTopColor: const Color(0xFF4492DE),
-                innerBottomColor: const Color(0xFF1C5B99),
+                innerBottomColor: const Color(0xFF18538C),
                 onTap: () => _openOrdersPage(initialFilter: 'Out for Delivery'),
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 11),
             Expanded(
               child: _Beveled3DStatButton(
                 label: 'Delivered',
                 count: _countOrdersByFilter('Delivered'),
                 outerColor: const Color(0xFF75429E),
                 innerTopColor: const Color(0xFF935CC0),
-                innerBottomColor: const Color(0xFF5D2F82),
+                innerBottomColor: const Color(0xFF532675),
                 onTap: () => _openOrdersPage(initialFilter: 'Delivered'),
               ),
             ),
@@ -1965,7 +1968,7 @@ class _OwnerDashboardScreenState extends State with WidgetsBindingObserver {
                 onTap: () => _openOrdersPage(initialFilter: 'All'),
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 11),
             Expanded(
               child: _Raised3DIconTile(
                 label: 'Products',
@@ -1976,7 +1979,7 @@ class _OwnerDashboardScreenState extends State with WidgetsBindingObserver {
             ),
           ],
         ),
-        const SizedBox(height: 9),
+        const SizedBox(height: 10),
         Row(
           children: [
             Expanded(
@@ -1987,7 +1990,7 @@ class _OwnerDashboardScreenState extends State with WidgetsBindingObserver {
                 onTap: _openCategoriesPage,
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 11),
             Expanded(
               child: _Raised3DIconTile(
                 label: 'Delivery PIN',
@@ -1998,7 +2001,7 @@ class _OwnerDashboardScreenState extends State with WidgetsBindingObserver {
             ),
           ],
         ),
-        const SizedBox(height: 9),
+        const SizedBox(height: 10),
         Row(
           children: [
             Expanded(
@@ -2010,7 +2013,7 @@ class _OwnerDashboardScreenState extends State with WidgetsBindingObserver {
                 onTap: _openDeliveryBoysPage,
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 9),
             Expanded(
               child: _Raised3DIconTile(
                 label: 'Reports',
@@ -2020,7 +2023,7 @@ class _OwnerDashboardScreenState extends State with WidgetsBindingObserver {
                 onTap: _openReportsPage,
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 9),
             Expanded(
               child: _Raised3DIconTile(
                 label: 'Admin\nManagement',
@@ -2045,15 +2048,15 @@ class _OwnerDashboardScreenState extends State with WidgetsBindingObserver {
           width: double.infinity,
           padding: const EdgeInsets.fromLTRB(11, 10, 11, 11),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.72),
+            color: Colors.white.withValues(alpha: 0.78),
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
-              color: Colors.white.withValues(alpha: 0.92),
-              width: 1.3,
+              color: Colors.white.withValues(alpha: 0.95),
+              width: 1.4,
             ),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF144A18).withValues(alpha: 0.08),
+                color: const Color(0xFF144A18).withValues(alpha: 0.09),
                 blurRadius: 12,
                 offset: const Offset(0, 4),
               ),
@@ -2163,8 +2166,8 @@ class _OwnerDashboardScreenState extends State with WidgetsBindingObserver {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      Color(0xFFE9F4EC),
-                      Color(0xFFD5E7DA),
+                      Color(0xFFEAF4ED),
+                      Color(0xFFD6E8DB),
                     ],
                   ),
                   borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -2234,229 +2237,6 @@ class _HeaderGlassIconButton extends StatelessWidget {
           child: child,
         ),
       ),
-    );
-  }
-}
-
-class DeliveryBoysScreen extends StatefulWidget {
-  final String actorRole;
-  const DeliveryBoysScreen({super.key, this.actorRole = 'owner'});
-
-  @override
-  State createState() => _DeliveryBoysScreenState();
-}
-
-class _DeliveryBoysScreenState extends State {
-  final _supabase = Supabase.instance.client;
-  List _boys = [];
-  bool _loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadBoys();
-  }
-
-  Future _loadBoys() async {
-    setState(() => _loading = true);
-    try {
-      final res = await _supabase
-          .from('deua_staff_accounts')
-          .select()
-          .eq('role', 'delivery_boy');
-      if (mounted) {
-        setState(() {
-          _boys = List.from(res as List);
-        });
-      }
-    } catch (_) {
-      try {
-        final res = await _supabase.from('deua_delivery_boys').select();
-        if (mounted) {
-          setState(() {
-            _boys = List.from(res as List);
-          });
-        }
-      } catch (_) {}
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF1B7A2B),
-        foregroundColor: Colors.white,
-        title: const Text('डिलीवरी बॉय • Delivery Boys'),
-        actions: [
-          IconButton(onPressed: _loadBoys, icon: const Icon(Icons.refresh)),
-        ],
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF1B7A2B)))
-          : _boys.isEmpty
-              ? const Center(child: Text('अभी कोई Delivery Boy नहीं मिला है।'))
-              : ListView.builder(
-                  padding: const EdgeInsets.all(12),
-                  itemCount: _boys.length,
-                  itemBuilder: (_, i) {
-                    final b = Map.from(_boys[i] as Map);
-                    final name = (b['name'] ?? 'Delivery Boy').toString();
-                    final phone = (b['phone'] ?? b['email'] ?? '').toString();
-                    final active = b['is_active'] != false;
-                    return Card(
-                      color: Colors.white,
-                      margin: const EdgeInsets.only(bottom: 8),
-                      child: ListTile(
-                        leading: const CircleAvatar(
-                          backgroundColor: Color(0xFFE8F5E9),
-                          child: Icon(Icons.delivery_dining, color: Color(0xFF1B7A2B)),
-                        ),
-                        title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Text(phone),
-                        trailing: Text(
-                          active ? 'Active' : 'Inactive',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: active ? const Color(0xFF1B7A2B) : Colors.red,
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-    );
-  }
-}
-
-class ServicePincodesScreen extends StatefulWidget {
-  final String actorRole;
-  const ServicePincodesScreen({super.key, this.actorRole = 'owner'});
-
-  @override
-  State createState() => _ServicePincodesScreenState();
-}
-
-class _ServicePincodesScreenState extends State {
-  final _supabase = Supabase.instance.client;
-  List _pins = [];
-  bool _loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadPins();
-  }
-
-  Future _loadPins() async {
-    setState(() => _loading = true);
-    try {
-      final res = await _supabase.from('deua_service_pincodes').select();
-      if (mounted) {
-        setState(() {
-          _pins = List.from(res as List);
-        });
-      }
-    } catch (_) {}
-    if (mounted) setState(() => _loading = false);
-  }
-
-  Future _addPinDialog() async {
-    final pinCtrl = TextEditingController();
-    final areaCtrl = TextEditingController();
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Add Delivery PIN'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: pinCtrl,
-              keyboardType: TextInputType.number,
-              maxLength: 6,
-              decoration: const InputDecoration(labelText: 'PIN Code'),
-            ),
-            TextField(
-              controller: areaCtrl,
-              decoration: const InputDecoration(labelText: 'Area Name'),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Save')),
-        ],
-      ),
-    );
-    if (ok == true && pinCtrl.text.trim().isNotEmpty) {
-      try {
-        await _supabase.from('deua_service_pincodes').insert({
-          'pincode': pinCtrl.text.trim(),
-          'area_name': areaCtrl.text.trim(),
-          'is_active': true,
-        });
-        await _loadPins();
-      } catch (_) {}
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF1B7A2B),
-        foregroundColor: Colors.white,
-        title: const Text('डिलीवरी पिन कोड • Pin Codes'),
-        actions: [
-          IconButton(onPressed: _loadPins, icon: const Icon(Icons.refresh)),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: const Color(0xFF1B7A2B),
-        foregroundColor: Colors.white,
-        onPressed: _addPinDialog,
-        icon: const Icon(Icons.add),
-        label: const Text('Add PIN'),
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF1B7A2B)))
-          : _pins.isEmpty
-              ? const Center(child: Text('अभी कोई Pin Code नहीं जुड़ा है।'))
-              : ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 80),
-                  itemCount: _pins.length,
-                  itemBuilder: (_, i) {
-                    final item = Map.from(_pins[i] as Map);
-                    final active = item['is_active'] != false;
-                    return Card(
-                      color: Colors.white,
-                      margin: const EdgeInsets.only(bottom: 8),
-                      child: ListTile(
-                        title: Text(
-                          '${item['pincode'] ?? ''} - ${item['area_name'] ?? ''}',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        subtitle: Text(active ? 'ACTIVE' : 'INACTIVE'),
-                        trailing: Switch(
-                          value: active,
-                          activeColor: const Color(0xFF1B7A2B),
-                          onChanged: (val) async {
-                            try {
-                              await _supabase
-                                  .from('deua_service_pincodes')
-                                  .update({'is_active': val})
-                                  .eq('id', item['id']);
-                              await _loadPins();
-                            } catch (_) {}
-                          },
-                        ),
-                      ),
-                    );
-                  },
-                ),
     );
   }
 }
@@ -2535,58 +2315,80 @@ class _Beveled3DStatButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.transparent,
-      borderRadius: BorderRadius.circular(15),
+      borderRadius: BorderRadius.circular(18),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(18),
         child: Container(
-          height: 54,
-          padding: const EdgeInsets.all(3.5),
+          height: 62,
+          padding: const EdgeInsets.all(4.5),
           decoration: BoxDecoration(
-            color: outerColor,
-            borderRadius: BorderRadius.circular(15),
+            borderRadius: BorderRadius.circular(18),
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                outerColor.withValues(alpha: 0.72),
+                outerColor.withValues(alpha: 0.96),
+              ],
+            ),
             border: Border.all(
-              color: Colors.white.withValues(alpha: 0.52),
-              width: 1.2,
+              color: Colors.white.withValues(alpha: 0.72),
+              width: 1.5,
             ),
             boxShadow: [
               BoxShadow(
-                color: outerColor.withValues(alpha: 0.42),
-                blurRadius: 9,
-                offset: const Offset(0, 4),
+                color: outerColor.withValues(alpha: 0.36),
+                blurRadius: 10,
+                offset: const Offset(0, 5),
+              ),
+              const BoxShadow(
+                color: Colors.white,
+                blurRadius: 3,
+                offset: Offset(0, -1),
               ),
             ],
           ),
           child: Container(
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(11),
+              borderRadius: BorderRadius.circular(13),
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [innerTopColor, innerBottomColor],
               ),
               border: Border.all(
-                color: Colors.white.withValues(alpha: 0.35),
-                width: 0.9,
+                color: Colors.white.withValues(alpha: 0.45),
+                width: 1.1,
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.28),
+                  blurRadius: 5,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
             child: Stack(
               children: [
                 Positioned(
-                  top: 0,
-                  left: 2,
-                  right: 2,
-                  height: 18,
+                  top: 2,
+                  left: 6,
+                  right: 6,
+                  height: 20,
                   child: IgnorePointer(
                     child: Container(
                       decoration: BoxDecoration(
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(11)),
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(11),
+                          bottom: Radius.circular(14),
+                        ),
                         gradient: LinearGradient(
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
                           colors: [
-                            Colors.white.withValues(alpha: 0.44),
-                            Colors.white.withValues(alpha: 0.03),
+                            Colors.white.withValues(alpha: 0.56),
+                            Colors.white.withValues(alpha: 0.04),
                           ],
                         ),
                       ),
@@ -2603,26 +2405,33 @@ class _Beveled3DStatButton extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 13,
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w700,
+                          height: 1.12,
+                          shadows: [
+                            Shadow(
+                              color: Color(0x66000000),
+                              blurRadius: 3,
+                              offset: Offset(0, 1.5),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 1.5),
+                      Text(
+                        '$count',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.96),
+                          fontSize: 11.5,
                           fontWeight: FontWeight.w700,
                           height: 1.1,
-                          shadows: [
+                          shadows: const [
                             Shadow(
                               color: Color(0x55000000),
                               blurRadius: 2,
                               offset: Offset(0, 1),
                             ),
                           ],
-                        ),
-                      ),
-                      const SizedBox(height: 1),
-                      Text(
-                        '$count',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.96),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          height: 1.15,
                         ),
                       ),
                     ],
@@ -2654,122 +2463,70 @@ class _Raised3DIconTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final double capsuleW = compact ? 58 : 74;
-    final double capsuleH = compact ? 38 : 44;
+    final double artSize = compact ? 44 : 52;
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Material(
-          color: Colors.white.withValues(alpha: 0.68),
-          borderRadius: BorderRadius.circular(16),
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(16),
-            child: Container(
-              constraints: BoxConstraints(minHeight: compact ? 84 : 88),
-              padding: EdgeInsets.symmetric(horizontal: 6, vertical: compact ? 6 : 7),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.68),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.92),
-                  width: 1.3,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF144A18).withValues(alpha: 0.08),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: capsuleW,
-                    height: capsuleH,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(capsuleH / 2),
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          Colors.white.withValues(alpha: 0.95),
-                          glassTint.withValues(alpha: 0.78),
-                          const Color(0xFFDCE7E0).withValues(alpha: 0.68),
-                        ],
-                      ),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.98),
-                        width: 1.4,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF1B5E20).withValues(alpha: 0.14),
-                          blurRadius: 7,
-                          offset: const Offset(0, 3),
-                        ),
-                        const BoxShadow(
-                          color: Colors.white,
-                          blurRadius: 3,
-                          offset: Offset(-1, -1),
-                        ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(capsuleH / 2),
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          Positioned(
-                            top: 2,
-                            left: 6,
-                            right: 6,
-                            height: capsuleH * 0.42,
-                            child: IgnorePointer(
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(capsuleH / 2),
-                                  gradient: LinearGradient(
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                    colors: [
-                                      Colors.white.withValues(alpha: 0.8),
-                                      Colors.white.withValues(alpha: 0.05),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
-                            child: FittedBox(
-                              fit: BoxFit.scaleDown,
-                              child: iconWidget,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    label,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: const Color(0xFF1A261F),
-                      fontSize: compact ? 11.5 : 12.5,
-                      fontWeight: FontWeight.w600,
-                      height: 1.15,
-                    ),
-                  ),
-                ],
-              ),
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          constraints: BoxConstraints(minHeight: compact ? 96 : 104),
+          padding: EdgeInsets.symmetric(horizontal: 6, vertical: compact ? 8 : 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.white.withValues(alpha: 0.96),
+                glassTint.withValues(alpha: 0.58),
+                const Color(0xFFEDF2EE).withValues(alpha: 0.94),
+              ],
             ),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.98),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.11),
+                blurRadius: 10,
+                offset: const Offset(0, 5),
+              ),
+              const BoxShadow(
+                color: Colors.white,
+                blurRadius: 4,
+                offset: Offset(0, -2),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: artSize + 10,
+                height: artSize,
+                child: Center(
+                  child: FittedBox(
+                    fit: BoxFit.contain,
+                    child: iconWidget,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: const Color(0xFF1A221D),
+                  fontSize: compact ? 12 : 13,
+                  fontWeight: FontWeight.w600,
+                  height: 1.15,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -2782,23 +2539,46 @@ class _Cart3DArtwork extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        const Icon(Icons.shopping_cart_rounded, size: 38, color: Color(0xFFD63829)),
-        Positioned(
-          top: 2,
-          right: 4,
-          child: Container(
-            width: 8,
-            height: 8,
-            decoration: const BoxDecoration(
-              color: Color(0xFFFBC02D),
-              shape: BoxShape.circle,
+    return SizedBox(
+      width: 58,
+      height: 50,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Transform.translate(
+            offset: const Offset(1, 1.5),
+            child: Icon(
+              Icons.shopping_cart_rounded,
+              size: 46,
+              color: Colors.black.withValues(alpha: 0.20),
             ),
           ),
-        ),
-      ],
+          ShaderMask(
+            shaderCallback: (rect) => const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFFFF6B5B), Color(0xFFD6281C), Color(0xFF99150C)],
+            ).createShader(rect),
+            child: const Icon(
+              Icons.shopping_cart_rounded,
+              size: 46,
+              color: Colors.white,
+            ),
+          ),
+          Positioned(
+            top: 5,
+            left: 14,
+            child: Container(
+              width: 14,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.72),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -2808,30 +2588,64 @@ class _ParcelBox3DArtwork extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 36,
-      height: 36,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(6),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFFD7A86E), Color(0xFF9B6834)],
-        ),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x2B000000),
-            blurRadius: 4,
-            offset: Offset(0, 2),
+    return SizedBox(
+      width: 54,
+      height: 50,
+      child: Center(
+        child: Transform(
+          alignment: Alignment.center,
+          transform: Matrix4.identity()
+            ..rotateX(-0.18)
+            ..rotateZ(-0.08),
+          child: Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFFE5BA82), Color(0xFFC48E4E), Color(0xFF8C5B27)],
+              ),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.45),
+                width: 1,
+              ),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x36000000),
+                  blurRadius: 8,
+                  offset: Offset(0, 5),
+                ),
+              ],
+            ),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Container(
+                  width: 9,
+                  height: 44,
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Color(0xFFF3D4A8), Color(0xFFC99B63)],
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 12,
+                  left: 0,
+                  right: 0,
+                  child: Container(
+                    height: 2,
+                    color: const Color(0xFF6E4316).withValues(alpha: 0.45),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ],
-      ),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Container(width: 7, height: 36, color: const Color(0xFFE7C496).withValues(alpha: 0.7)),
-          Container(width: 36, height: 2, color: const Color(0xFF7B4E22).withValues(alpha: 0.5)),
-        ],
+        ),
       ),
     );
   }
@@ -2842,44 +2656,73 @@ class _Folders3DArtwork extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        Positioned(
-          top: 2,
-          left: 8,
-          child: Transform.rotate(
-            angle: -0.2,
-            child: Container(
-              width: 14,
-              height: 14,
-              decoration: BoxDecoration(
-                color: const Color(0xFF42A5F5),
-                borderRadius: BorderRadius.circular(2.5),
+    return SizedBox(
+      width: 58,
+      height: 50,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Positioned(
+            top: 4,
+            left: 11,
+            child: Transform.rotate(
+              angle: -0.22,
+              child: Container(
+                width: 18,
+                height: 18,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(4),
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFF64B5F6), Color(0xFF1E88E5)],
+                  ),
+                  boxShadow: const [
+                    BoxShadow(color: Color(0x26000000), blurRadius: 3, offset: Offset(0, 2)),
+                  ],
+                ),
               ),
             ),
           ),
-        ),
-        Positioned(
-          top: 1,
-          right: 8,
-          child: Transform.rotate(
-            angle: 0.2,
-            child: Container(
-              width: 14,
-              height: 14,
-              decoration: BoxDecoration(
-                color: const Color(0xFFEC407A),
-                borderRadius: BorderRadius.circular(2.5),
+          Positioned(
+            top: 3,
+            right: 11,
+            child: Transform.rotate(
+              angle: 0.22,
+              child: Container(
+                width: 18,
+                height: 18,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(4),
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFFF48FB1), Color(0xFFD81B60)],
+                  ),
+                  boxShadow: const [
+                    BoxShadow(color: Color(0x26000000), blurRadius: 3, offset: Offset(0, 2)),
+                  ],
+                ),
               ),
             ),
           ),
-        ),
-        const Padding(
-          padding: EdgeInsets.only(top: 5),
-          child: Icon(Icons.folder_rounded, size: 36, color: Color(0xFFFBC02D)),
-        ),
-      ],
+          Positioned(
+            bottom: 3,
+            child: ShaderMask(
+              shaderCallback: (rect) => const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xFFFFE066), Color(0xFFFBC02D), Color(0xFFE09A00)],
+              ).createShader(rect),
+              child: const Icon(
+                Icons.folder_rounded,
+                size: 44,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -2889,20 +2732,74 @@ class _PinMail3DArtwork extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Stack(
-      alignment: Alignment.center,
-      children: [
-        Padding(
-          padding: EdgeInsets.only(top: 9),
-          child: Icon(Icons.mark_email_unread_rounded, size: 32, color: Color(0xFFCFD8DC)),
-        ),
-        Positioned(
-          top: 0,
-          child: Icon(Icons.location_on_rounded, size: 25, color: Color(0xFFE53935)),
-        ),
-      ],
+    return SizedBox(
+      width: 56,
+      height: 50,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Positioned(
+            bottom: 2,
+            child: Container(
+              width: 44,
+              height: 28,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(6),
+                gradient: const LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xFFFFFFFF), Color(0xFFE3E8EC)],
+                ),
+                border: Border.all(color: const Color(0xFFD0D7DE), width: 1),
+                boxShadow: const [
+                  BoxShadow(color: Color(0x28000000), blurRadius: 6, offset: Offset(0, 3)),
+                ],
+              ),
+              child: CustomPaint(
+                painter: _EnvelopeFlapPainter(),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 1,
+            child: ShaderMask(
+              shaderCallback: (rect) => const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFFFF6B6B), Color(0xFFD92626)],
+              ).createShader(rect),
+              child: const Icon(
+                Icons.location_on_rounded,
+                size: 30,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
+}
+
+class _EnvelopeFlapPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0xFFE53935)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0
+      ..strokeJoin = StrokeJoin.round;
+
+    final path = Path()
+      ..moveTo(2, 2)
+      ..lineTo(size.width / 2, size.height * 0.58)
+      ..lineTo(size.width - 2, 2);
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _DeliveryTruck3DArtwork extends StatelessWidget {
@@ -2910,7 +2807,35 @@ class _DeliveryTruck3DArtwork extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Icon(Icons.local_shipping_rounded, size: 36, color: Color(0xFFE67E22));
+    return SizedBox(
+      width: 54,
+      height: 46,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Transform.translate(
+            offset: const Offset(1, 2),
+            child: Icon(
+              Icons.local_shipping_rounded,
+              size: 42,
+              color: Colors.black.withValues(alpha: 0.18),
+            ),
+          ),
+          ShaderMask(
+            shaderCallback: (rect) => const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFFFFA74F), Color(0xFFE67E22), Color(0xFFB35409)],
+            ).createShader(rect),
+            child: const Icon(
+              Icons.local_shipping_rounded,
+              size: 42,
+              color: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -2919,16 +2844,52 @@ class _BarChart3DArtwork extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        Container(width: 8, height: 14, decoration: BoxDecoration(color: const Color(0xFF42A5F5), borderRadius: BorderRadius.circular(2))),
-        const SizedBox(width: 3),
-        Container(width: 8, height: 22, decoration: BoxDecoration(color: const Color(0xFFEF5350), borderRadius: BorderRadius.circular(2))),
-        const SizedBox(width: 3),
-        Container(width: 8, height: 30, decoration: BoxDecoration(color: const Color(0xFF43A047), borderRadius: BorderRadius.circular(2))),
-      ],
+    Widget bar(double h, List<Color> colors) {
+      return Container(
+        width: 10,
+        height: h,
+        decoration: BoxDecoration(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: colors,
+          ),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 0.7),
+          boxShadow: const [
+            BoxShadow(color: Color(0x26000000), blurRadius: 3, offset: Offset(1, 2)),
+          ],
+        ),
+      );
+    }
+
+    return SizedBox(
+      width: 46,
+      height: 44,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              bar(16, const [Color(0xFF64B5F6), Color(0xFF1E88E5)]),
+              const SizedBox(width: 4),
+              bar(24, const [Color(0xFFEF5350), Color(0xFFC62828)]),
+              const SizedBox(width: 4),
+              bar(33, const [Color(0xFF66BB6A), Color(0xFF2E7D32)]),
+            ],
+          ),
+          Container(
+            width: 40,
+            height: 3,
+            decoration: BoxDecoration(
+              color: const Color(0xFFB0BEC5),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -2938,12 +2899,38 @@ class _AdminPair3DArtwork extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(Icons.person_rounded, size: 28, color: Color(0xFF42A5F5)),
-        Icon(Icons.person_rounded, size: 28, color: Color(0xFF37474F)),
-      ],
+    return SizedBox(
+      width: 52,
+      height: 44,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Positioned(
+            right: 4,
+            bottom: 3,
+            child: ShaderMask(
+              shaderCallback: (rect) => const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xFF607D8B), Color(0xFF263238)],
+              ).createShader(rect),
+              child: const Icon(Icons.person_rounded, size: 34, color: Colors.white),
+            ),
+          ),
+          Positioned(
+            left: 4,
+            bottom: 2,
+            child: ShaderMask(
+              shaderCallback: (rect) => const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xFF64B5F6), Color(0xFF1976D2)],
+              ).createShader(rect),
+              child: const Icon(Icons.person_rounded, size: 36, color: Colors.white),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
