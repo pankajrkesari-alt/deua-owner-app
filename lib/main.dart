@@ -1,4 +1,5 @@
 import 'delivery_boys_screen.dart';
+import 'service_pincodes_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -441,6 +442,7 @@ class _OwnerDashboardScreenState extends State {
   String get _role => (_w.currentUser['role'] ?? '').toString().toLowerCase();
   bool get _isOwner => _role == 'owner';
   bool get _canDeliveryBoys => _role == 'owner' || _role == 'admin';
+  bool get _canPincodes => _role == 'owner' || _role == 'admin';
   bool get _canOrders => _isOwner || _w.currentUser['can_orders'] == true;
   bool get _canProducts => _isOwner || _w.currentUser['can_products'] == true;
   bool get _canCategories => _isOwner || _w.currentUser['can_categories'] == true;
@@ -459,6 +461,9 @@ class _OwnerDashboardScreenState extends State {
     }
     if (_canDeliveryBoys) {
       tabs.add({'key': 'delivery_boys', 'title': 'डिलीवरी बॉय • Delivery Boys', 'label': 'Delivery', 'icon': Icons.delivery_dining});
+    }
+    if (_canPincodes) {
+      tabs.add({'key': 'pincodes', 'title': 'डिलीवरी पिन कोड • Pin Codes', 'label': 'Pin Codes', 'icon': Icons.pin_drop});
     }
     if (_canHisab) {
       tabs.add({'key': 'hisab', 'title': 'दुकान हिसाब • Shop Summary', 'label': 'Hisab', 'icon': Icons.bar_chart});
@@ -1483,6 +1488,8 @@ class _OwnerDashboardScreenState extends State {
         return _categoriesTab();
       case 'delivery_boys':
         return DeliveryBoysScreen(actorRole: _role);
+      case 'pincodes':
+        return ServicePincodesScreen(actorRole: _role);
       case 'hisab':
         return _summaryTab();
       case 'staff':
